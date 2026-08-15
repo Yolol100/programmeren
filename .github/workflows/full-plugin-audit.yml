@@ -40,7 +40,7 @@ concurrency:
 
 jobs:
   audit:
-    if: ${{ github.event_name != 'issues' || startsWith(github.event.issue.title, '[audit]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && startsWith(github.event.issue.title, '[audit]') && github.event.issue.user.login == github.repository_owner) }}
     name: One-job full audit
     runs-on: ubuntu-latest
     timeout-minutes: 35
