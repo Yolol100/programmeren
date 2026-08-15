@@ -22,9 +22,11 @@ jobs:
         run: |
           echo 'LF source hashes:'
           find .audit/source-sync -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum
-          echo 'CRLF Drive-export hashes:'
+          echo 'CRLF Drive-export hashes and bytes:'
           while IFS= read -r -d '' file; do
-            printf '%s  %s\n' "$(sed 's/$/\r/' "$file" | sha256sum | awk '{print $1}')" "$file"
+            crlf_hash="$(sed 's/$/\r/' "$file" | sha256sum | awk '{print $1}')"
+            crlf_bytes="$(sed 's/$/\r/' "$file" | wc -c | tr -d ' ')"
+            printf '%s  %s  bytes=%s\n' "$crlf_hash" "$file" "$crlf_bytes"
           done < <(find .audit/source-sync -maxdepth 1 -type f -print0 | sort -z)
           manifest='.audit/source-sync/PROJECT-MANIFEST.json'
           if [[ -f "$manifest" ]]; then
@@ -44,6 +46,6 @@ jobs:
             } > "$wrapper"
             echo 'LF wrapper hash:'
             sha256sum "$wrapper"
-            echo 'CRLF Drive-export wrapper hash:'
-            sed 's/$/\r/' "$wrapper" | sha256sum
+            echo 'CRLF Drive-export wrapper hash and bytes:'
+            printf '%s  %s  bytes=%s\n' "$(sed 's/$/\r/' "$wrapper" | sha256sum | awk '{print $1}')" "$wrapper" "$(sed 's/$/\r/' "$wrapper" | wc -c | tr -d ' ')"
           fi
