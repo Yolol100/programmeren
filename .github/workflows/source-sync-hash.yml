@@ -20,22 +20,30 @@ jobs:
       - name: Hash source-sync files
         shell: bash
         run: |
+          echo 'LF source hashes:'
           find .audit/source-sync -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum
+          echo 'CRLF Drive-export hashes:'
+          while IFS= read -r -d '' file; do
+            printf '%s  %s\n' "$(sed 's/$/\r/' "$file" | sha256sum | awk '{print $1}')" "$file"
+          done < <(find .audit/source-sync -maxdepth 1 -type f -print0 | sort -z)
           manifest='.audit/source-sync/PROJECT-MANIFEST.json'
           if [[ -f "$manifest" ]]; then
-            manifest_sha="$(sha256sum "$manifest" | awk '{print $1}')"
+            manifest_crlf_sha="$(sed 's/$/\r/' "$manifest" | sha256sum | awk '{print $1}')"
             wrapper='/tmp/PROJECT-MANIFEST.json.md'
             {
               echo '# ChatGPT-compatibele kopie van `PROJECT-MANIFEST.json`'
               echo
               echo '- Canoniek bronpad: `PROJECT-MANIFEST.json`'
               echo '- Bronrol: Live projectmanifest'
-              echo "- Canonieke SHA-256: \`$manifest_sha\`"
+              echo "- Canonieke SHA-256: \`$manifest_crlf_sha\`"
               echo '- Conversie: uitsluitend verpakt als Markdown; de machine-inhoud hieronder is ongewijzigd.'
               echo
               echo '```json'
               cat "$manifest"
               echo '```'
             } > "$wrapper"
+            echo 'LF wrapper hash:'
             sha256sum "$wrapper"
+            echo 'CRLF Drive-export wrapper hash:'
+            sed 's/$/\r/' "$wrapper" | sha256sum
           fi
