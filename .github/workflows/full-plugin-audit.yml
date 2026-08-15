@@ -95,6 +95,7 @@ jobs:
           coverage: none
 
       - name: Install pinned audit tooling
+        id: tools
         shell: bash
         run: |
           composer install --working-dir=.audit/tools --no-interaction --no-progress --prefer-dist --no-plugins --no-scripts
@@ -103,6 +104,10 @@ jobs:
           .audit/scripts/install_cli_tools.sh
           mkdir -p audit-results
           cp .audit/tools/composer.lock audit-results/audit-tools-composer.lock
+
+      - name: Record audit tool provenance
+        shell: bash
+        run: |
           {
             php -r 'echo "php=" . PHP_VERSION . PHP_EOL;'
             composer --version
@@ -151,7 +156,7 @@ jobs:
 
       - name: Sentry-light runtime probe
         id: runtime
-        if: ${{ always() && steps.request.outputs.run_runtime == 'true' }}
+        if: ${{ always() && steps.request.outputs.run_runtime == 'true' && steps.tools.outcome == 'success' }}
         continue-on-error: true
         shell: bash
         run: .audit/scripts/runtime_probe.sh
@@ -164,6 +169,7 @@ jobs:
           TARGET_REPO: ${{ steps.request.outputs.target_repo }}
           TARGET_REF: ${{ steps.request.outputs.target_ref }}
           TARGET_PATH: ${{ steps.request.outputs.target_path }}
+          TOOLS_OUTCOME: ${{ steps.tools.outcome }}
           STATIC_OUTCOME: ${{ steps.static.outcome }}
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
@@ -178,6 +184,7 @@ jobs:
             echo "- repository: \`$TARGET_REPO\`"
             echo "- ref: \`$TARGET_REF\`"
             echo "- path: \`$TARGET_PATH\`"
+            echo "- tooling: \`$TOOLS_OUTCOME\`"
             echo "- static: \`$STATIC_OUTCOME\`"
             echo "- trivy: \`$TRIVY_OUTCOME\`"
             echo "- plugin_check: \`${PLUGIN_CHECK_OUTCOME:-skipped}\`"
@@ -199,6 +206,7 @@ jobs:
         if: always()
         shell: bash
         env:
+          TOOLS_OUTCOME: ${{ steps.tools.outcome }}
           STATIC_OUTCOME: ${{ steps.static.outcome }}
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
@@ -206,6 +214,7 @@ jobs:
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
         run: |
           failures=0
+          [[ "$TOOLS_OUTCOME" == "success" ]] || failures=$((failures + 1))
           [[ "$STATIC_OUTCOME" == "success" ]] || failures=$((failures + 1))
           [[ "$TRIVY_OUTCOME" == "success" ]] || failures=$((failures + 1))
           if [[ "$RUN_RUNTIME" == "true" ]]; then
