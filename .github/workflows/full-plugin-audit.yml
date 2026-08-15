@@ -27,11 +27,9 @@ on:
         required: true
         default: '8.3'
         type: string
-  push:
-    branches:
-      - main
-    paths:
-      - '.audit/request.json'
+  issues:
+    types:
+      - opened
 
 permissions:
   contents: read
@@ -42,6 +40,7 @@ concurrency:
 
 jobs:
   audit:
+    if: ${{ github.event_name != 'issues' || startsWith(github.event.issue.title, '[audit]') }}
     name: One-job full audit
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -63,6 +62,9 @@ jobs:
           INPUT_TARGET_PATH: ${{ inputs.target_path }}
           INPUT_RUN_RUNTIME: ${{ inputs.run_runtime }}
           INPUT_PHP_VERSION: ${{ inputs.php_version }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           REQUEST_FILE: .audit/request.json
         run: python3 .audit/scripts/resolve_request.py >> "$GITHUB_OUTPUT"
 

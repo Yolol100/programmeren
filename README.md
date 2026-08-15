@@ -30,9 +30,9 @@ Ga naar **Actions → Full WordPress Plugin Audit → Run workflow** en vul mini
 
 ### Via ChatGPT
 
-ChatGPT kan `.audit/request.json` wijzigen. Alleen een wijziging van dat bestand op `main` triggert de audit automatisch. Normale wijzigingen, pushes en pull requests starten deze workflow niet.
+Als jij zegt **"test deze plugin"**, maakt ChatGPT via de gekoppelde GitHub-app één tijdelijk issue met een titel die begint met `[audit]` en een JSON-body zoals hieronder. Alleen zo'n audit-issue start de job. Gewone pushes, pull requests en andere issues starten geen runnerjob.
 
-Voorbeeld:
+Voorbeeld issue-body:
 
 ```json
 {
@@ -66,4 +66,4 @@ Een groene run bewijst alleen de uitgevoerde statische en controlled-runtime che
 
 ## Ingebouwde self-test
 
-`.audit/fixtures/sample-plugin` is een minimale veilige fixture. De bootstrap-request in `.audit/request.json` auditeert deze fixture om de volledige harness zelf te valideren.
+`.audit/fixtures/sample-plugin` is een minimale veilige fixture. `.audit/request.json` blijft als voorbeeld/configuratiesnapshot aanwezig; de daadwerkelijke ChatGPT-trigger gebruikt een `[audit]`-issue zodat de GitHub-koppeling de run betrouwbaar kan starten.

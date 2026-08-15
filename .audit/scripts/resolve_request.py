@@ -47,6 +47,16 @@ def main() -> None:
             "run_runtime": os.environ.get("INPUT_RUN_RUNTIME", "true"),
             "php_version": os.environ.get("INPUT_PHP_VERSION", "8.3"),
         }
+    elif event == "issues":
+        issue_title = os.environ.get("ISSUE_TITLE", "")
+        issue_body = os.environ.get("ISSUE_BODY", "")
+        if not issue_title.startswith("[audit]"):
+            fail("issue trigger title must start with [audit]")
+        try:
+            data = json.loads(issue_body)
+        except json.JSONDecodeError as exc:
+            fail(f"audit issue body must be JSON: {exc}")
+        data.setdefault("request_id", f"issue-{os.environ.get('ISSUE_NUMBER', 'request')}")
     else:
         request_file = os.environ.get("REQUEST_FILE", ".audit/request.json")
         try:
