@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "owner_skill": "wordpressqualityarchitect",
+  "project_id": "project-plugin",
+  "repository": "Yolol100/programmeren",
+  "evidence_role": "controlled_runtime_wordpress_plugin_audit",
+  "requires_account": false,
+  "requires_api_key": false,
+  "requires_mcp": false,
+  "tools": [
+    {"id":"parallel-lint","version":"composer-lock","trigger_when":"PHP source is present","outputs":["audit-results/php-syntax.log"]},
+    {"id":"wpcs","version":"composer-lock","trigger_when":"PHP source is present","outputs":["audit-results/wpcs.log"]},
+    {"id":"phpcompatibilitywp","version":"composer-lock","trigger_when":"PHP source is present","outputs":["audit-results/php-compat.log"]},
+    {"id":"phpstan-wordpress","version":"composer-lock","trigger_when":"PHP source is present","outputs":["audit-results/phpstan.log"]},
+    {"id":"composer-audit","version":"runner-composer-v2","trigger_when":"composer.lock is present","outputs":["audit-results/composer-audit.log"]},
+    {"id":"npm-audit","version":"runner-node","trigger_when":"package-lock.json is present","outputs":["audit-results/npm-audit.log"]},
+    {"id":"gitleaks","version":"8.28.0","trigger_when":"every static audit","outputs":["audit-results/gitleaks.json"]},
+    {"id":"semgrep-ce","version":"1.170.0","trigger_when":"every static audit","outputs":["audit-results/semgrep.json"]},
+    {"id":"trivy","version":"0.74.0","trigger_when":"every full audit","outputs":["audit-results/trivy.json"]},
+    {"id":"actionlint","version":"1.7.12","trigger_when":"target contains GitHub Actions","outputs":["audit-results/actionlint.log"]},
+    {"id":"zizmor","version":"1.28.0","trigger_when":"target contains GitHub Actions","outputs":["audit-results/zizmor.log"]},
+    {"id":"wordpress-plugin-check","version":"action-pinned","trigger_when":"run_runtime is true","outputs":["workflow evidence"]},
+    {"id":"wp-env-runtime-probe","version":"repo","trigger_when":"run_runtime is true","outputs":["audit-results runtime evidence"]}
+  ],
+  "usage_assertions": [
+    {"tool":"parallel-lint","path":".audit/scripts/run_static_audit.sh","contains":"parallel-lint"},
+    {"tool":"wpcs","path":".audit/scripts/run_static_audit.sh","contains":"--standard=WordPress"},
+    {"tool":"phpcompatibilitywp","path":".audit/scripts/run_static_audit.sh","contains":"PHPCompatibilityWP"},
+    {"tool":"phpstan-wordpress","path":".audit/scripts/run_static_audit.sh","contains":"phpstan-wordpress"},
+    {"tool":"composer-audit","path":".audit/scripts/run_static_audit.sh","contains":"composer audit"},
+    {"tool":"npm-audit","path":".audit/scripts/run_static_audit.sh","contains":"npm audit"},
+    {"tool":"gitleaks","path":".audit/scripts/run_static_audit.sh","contains":"run_check gitleaks"},
+    {"tool":"semgrep-ce","path":".audit/scripts/run_static_audit.sh","contains":"SEMGREP_SEND_METRICS=off"},
+    {"tool":"trivy","path":".github/workflows/full-plugin-audit.yml","contains":"aquasecurity/trivy-action"},
+    {"tool":"actionlint","path":".audit/scripts/run_static_audit.sh","contains":"run_check actionlint"},
+    {"tool":"zizmor","path":".audit/scripts/run_static_audit.sh","contains":"run_check zizmor"},
+    {"tool":"wordpress-plugin-check","path":".github/workflows/full-plugin-audit.yml","contains":"WordPress/plugin-check-action"},
+    {"tool":"wp-env-runtime-probe","path":".github/workflows/full-plugin-audit.yml","contains":"runtime_probe.sh"}
+  ],
+  "boundaries": [
+    "Semgrep uses only local repository-owned rules with metrics disabled; no login, token, cloud registry config or MCP server is required or started.",
+    "Semgrep Community Edition is a candidate-finding layer; findings require specialist validation and do not automatically prove a vulnerability.",
+    "Target project scripts are not executed generically; runtime probes remain controlled."
+  ]
+}
