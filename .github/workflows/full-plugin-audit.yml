@@ -88,7 +88,7 @@ jobs:
           token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ steps.request.outputs.php_version }}
           tools: composer:v2
@@ -101,6 +101,17 @@ jobs:
           .audit/tools/vendor/bin/phpcs --config-set installed_paths \
             "${GITHUB_WORKSPACE}/.audit/tools/vendor/wp-coding-standards/wpcs,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsutils,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsextra,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/php-compatibility,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-wp,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-paragonie"
           .audit/scripts/install_cli_tools.sh
+          mkdir -p audit-results
+          cp .audit/tools/composer.lock audit-results/audit-tools-composer.lock
+          {
+            php -r 'echo "php=" . PHP_VERSION . PHP_EOL;'
+            composer --version
+            .audit/tools/vendor/bin/phpcs --version
+            .audit/tools/vendor/bin/phpstan --version
+            actionlint -version
+            gitleaks version
+            zizmor --version
+          } > audit-results/tool-versions.txt
 
       - name: Static, compatibility, dependency and secret audit
         id: static
@@ -110,6 +121,7 @@ jobs:
           PLUGIN_DIR: ${{ steps.request.outputs.plugin_dir }}
           TARGET_REPO: ${{ steps.request.outputs.target_repo }}
           TARGET_REF: ${{ steps.request.outputs.target_ref }}
+          GH_TOKEN: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
         run: .audit/scripts/run_static_audit.sh
 
       - name: Trivy vulnerability and misconfiguration scan
@@ -125,6 +137,8 @@ jobs:
           format: json
           output: audit-results/trivy.json
           exit-code: '1'
+          version: 'v0.74.0'
+          cache: 'false'
 
       - name: WordPress Plugin Check controlled runtime
         id: plugincheck
