@@ -116,6 +116,16 @@ fi
 # Secret scan is filesystem-only: it never needs Git history or credentials.
 run_check gitleaks gitleaks dir "$ROOT" --no-banner --redact --report-format json --report-path "$RESULTS/gitleaks.json"
 
+# Local Semgrep Community Edition candidate layer. It uses only repository-owned rules,
+# never logs in, never starts MCP, and disables metrics. Findings remain candidate evidence;
+# Semgrep's normal scan exit code fails this check only when execution itself fails.
+run_check semgrep env SEMGREP_SEND_METRICS=off semgrep scan \
+  --config "${GITHUB_WORKSPACE}/.audit/semgrep/wordpress-security.yml" \
+  --metrics=off \
+  --json \
+  --output "$RESULTS/semgrep.json" \
+  "$ROOT"
+
 # CI configuration checks apply only when the target repository contains workflows.
 if [[ -d "${GITHUB_WORKSPACE}/target-repo/.github/workflows" ]]; then
   mapfile -t workflow_files < <(find "${GITHUB_WORKSPACE}/target-repo/.github/workflows" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
