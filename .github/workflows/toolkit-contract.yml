@@ -1,0 +1,48 @@
+name: Toolkit Contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'toolkit-contract.json'
+      - '.audit/semgrep/**'
+      - '.audit/scripts/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Validate registered toolkit is accountless and wired
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          c=json.load(open('toolkit-contract.json', encoding='utf-8'))
+          for key in ('requires_account','requires_api_key','requires_mcp'):
+              assert c.get(key) is False, f'{key} must be false'
+          ids=[t['id'] for t in c['tools']]
+          assert len(ids)==len(set(ids)), 'duplicate tool ids'
+          covered=set()
+          for a in c['usage_assertions']:
+              assert a['tool'] in ids
+              p=pathlib.Path(a['path']); assert p.is_file(), f'missing {p}'
+              assert a['contains'] in p.read_text(encoding='utf-8'), f"{a['tool']} not wired in {p}"
+              covered.add(a['tool'])
+          assert covered==set(ids), f'unwired tools: {set(ids)-covered}'
+          static=pathlib.Path('.audit/scripts/run_static_audit.sh').read_text(encoding='utf-8')
+          assert 'semgrep mcp' not in static.lower()
+          assert 'semgrep login' not in static.lower()
+          assert '--metrics=off' in static
+          print('toolkit-contract: OK')
+          PY
+      - name: Validate local Semgrep rules with pinned CE CLI
+        shell: bash
+        run: |
+          python3 -m venv /tmp/semgrep-contract
+          /tmp/semgrep-contract/bin/python -m pip install --disable-pip-version-check --no-input 'semgrep==1.170.0'
+          SEMGREP_SEND_METRICS=off /tmp/semgrep-contract/bin/semgrep scan --validate --metrics=off --config .audit/semgrep/wordpress-security.yml
