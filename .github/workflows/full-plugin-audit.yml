@@ -99,6 +99,12 @@ jobs:
         shell: bash
         run: |
           composer install --working-dir=.audit/tools --no-interaction --no-progress --prefer-dist --no-plugins --no-scripts
+          expected_lock_sha='f5f0768d29b41a4c5833bd74031d1409268ee28efb42259bb5202668ae6f57c8'
+          actual_lock_sha="$(sha256sum .audit/tools/composer.lock | awk '{print $1}')"
+          if [[ "$actual_lock_sha" != "$expected_lock_sha" ]]; then
+            echo "Audit dependency graph drift: expected $expected_lock_sha, got $actual_lock_sha" >&2
+            exit 2
+          fi
           .audit/tools/vendor/bin/phpcs --config-set installed_paths \
             "${GITHUB_WORKSPACE}/.audit/tools/vendor/wp-coding-standards/wpcs,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsutils,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsextra,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/php-compatibility,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-wp,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-paragonie"
           .audit/scripts/install_cli_tools.sh
