@@ -1,0 +1,203 @@
+name: Full WordPress Plugin Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'Target repository as owner/repository'
+        required: true
+        type: string
+      target_ref:
+        description: 'Branch, tag or commit to audit'
+        required: true
+        default: 'main'
+        type: string
+      target_path:
+        description: 'Relative plugin path inside the target repository'
+        required: true
+        default: '.'
+        type: string
+      run_runtime:
+        description: 'Run WordPress Plugin Check + controlled runtime probe'
+        required: true
+        default: true
+        type: boolean
+      php_version:
+        description: 'PHP runtime for static tools'
+        required: true
+        default: '8.3'
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - '.audit/request.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-plugin-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: One-job full audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Resolve and validate audit request
+        id: request
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          INPUT_TARGET_REPO: ${{ inputs.target_repo }}
+          INPUT_TARGET_REF: ${{ inputs.target_ref }}
+          INPUT_TARGET_PATH: ${{ inputs.target_path }}
+          INPUT_RUN_RUNTIME: ${{ inputs.run_runtime }}
+          INPUT_PHP_VERSION: ${{ inputs.php_version }}
+          REQUEST_FILE: .audit/request.json
+        run: python3 .audit/scripts/resolve_request.py >> "$GITHUB_OUTPUT"
+
+      - name: Enforce public/private evidence boundary
+        shell: bash
+        env:
+          TARGET_REPO: ${{ steps.request.outputs.target_repo }}
+          HARNESS_VISIBILITY: ${{ github.event.repository.visibility }}
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN_REPO_TOKEN: ${{ secrets.PLUGIN_REPO_TOKEN }}
+        run: .audit/scripts/check_target_visibility.sh
+
+      - name: Checkout target repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          repository: ${{ steps.request.outputs.target_repo }}
+          ref: ${{ steps.request.outputs.target_ref }}
+          path: target-repo
+          fetch-depth: 1
+          persist-credentials: false
+          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        with:
+          php-version: ${{ steps.request.outputs.php_version }}
+          tools: composer:v2
+          coverage: none
+
+      - name: Install pinned audit tooling
+        shell: bash
+        run: |
+          composer install --working-dir=.audit/tools --no-interaction --no-progress --prefer-dist --no-plugins --no-scripts
+          .audit/tools/vendor/bin/phpcs --config-set installed_paths \
+            "${GITHUB_WORKSPACE}/.audit/tools/vendor/wp-coding-standards/wpcs,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/php-compatibility,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-wp"
+          .audit/scripts/install_cli_tools.sh
+
+      - name: Static, compatibility, dependency and secret audit
+        id: static
+        continue-on-error: true
+        shell: bash
+        env:
+          PLUGIN_DIR: ${{ steps.request.outputs.plugin_dir }}
+          TARGET_REPO: ${{ steps.request.outputs.target_repo }}
+          TARGET_REF: ${{ steps.request.outputs.target_ref }}
+        run: .audit/scripts/run_static_audit.sh
+
+      - name: Trivy vulnerability and misconfiguration scan
+        id: trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ steps.request.outputs.plugin_dir }}
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          format: json
+          output: audit-results/trivy.json
+          exit-code: '1'
+
+      - name: WordPress Plugin Check controlled runtime
+        id: plugincheck
+        if: ${{ steps.request.outputs.run_runtime == 'true' }}
+        continue-on-error: true
+        uses: WordPress/plugin-check-action@10857da14b6c2246d15402b3e69f777edcf8c12e # v1
+        with:
+          build-dir: ${{ steps.request.outputs.plugin_dir }}
+          strict: 'false'
+
+      - name: Sentry-light runtime probe
+        id: runtime
+        if: ${{ always() && steps.request.outputs.run_runtime == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: .audit/scripts/runtime_probe.sh
+
+      - name: Write audit summary
+        if: always()
+        shell: bash
+        env:
+          REQUEST_ID: ${{ steps.request.outputs.request_id }}
+          TARGET_REPO: ${{ steps.request.outputs.target_repo }}
+          TARGET_REF: ${{ steps.request.outputs.target_ref }}
+          TARGET_PATH: ${{ steps.request.outputs.target_path }}
+          STATIC_OUTCOME: ${{ steps.static.outcome }}
+          TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
+          PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
+        run: |
+          mkdir -p audit-results
+          {
+            echo "# WordPress Plugin Audit"
+            echo
+            echo "- request_id: \`$REQUEST_ID\`"
+            echo "- repository: \`$TARGET_REPO\`"
+            echo "- ref: \`$TARGET_REF\`"
+            echo "- path: \`$TARGET_PATH\`"
+            echo "- static: \`$STATIC_OUTCOME\`"
+            echo "- trivy: \`$TRIVY_OUTCOME\`"
+            echo "- plugin_check: \`${PLUGIN_CHECK_OUTCOME:-skipped}\`"
+            echo "- runtime: \`${RUNTIME_OUTCOME:-skipped}\`"
+            echo
+            echo "A scanner failure is a candidate finding, not automatically a confirmed bug."
+          } | tee audit-results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete audit evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wordpress-plugin-audit-${{ github.run_id }}
+          path: audit-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Final quality gate
+        if: always()
+        shell: bash
+        env:
+          STATIC_OUTCOME: ${{ steps.static.outcome }}
+          TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
+          PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
+        run: |
+          failures=0
+          [[ "$STATIC_OUTCOME" == "success" ]] || failures=$((failures + 1))
+          [[ "$TRIVY_OUTCOME" == "success" ]] || failures=$((failures + 1))
+          if [[ "$RUN_RUNTIME" == "true" ]]; then
+            [[ "$PLUGIN_CHECK_OUTCOME" == "success" ]] || failures=$((failures + 1))
+            [[ "$RUNTIME_OUTCOME" == "success" ]] || failures=$((failures + 1))
+          fi
+          if (( failures > 0 )); then
+            echo "Audit gate failed in ${failures} evidence layer(s). Review the uploaded evidence."
+            exit 1
+          fi
+          echo "Audit gate passed for the configured evidence layers."
