@@ -32,8 +32,8 @@
     {
       "path": "00-governance/05-operator-contract.md",
       "mime_type": "text/markdown",
-      "sha256": "adf48017198fef225fe689d8e443420446e471603e06f26cf5d551058c839827",
-      "hash_basis": "CRLF Drive-export bytes for 2026-08-15 canonical GitHub audit harness binding",
+      "sha256": "7f1f842ff71eb8eb553070563035a414b7c4bd2bcc37a01027782ba0ce18d1a6",
+      "hash_basis": "CRLF Drive-export bytes (no terminal newline) for 2026-08-15 canonical GitHub audit harness binding",
       "owner": "wordpressqualityarchitect",
       "status": "active",
       "last_verified": "2026-08-15",
@@ -231,8 +231,8 @@
     {
       "path": "00-governance/project-source-contract.json",
       "mime_type": "application/json",
-      "sha256": "490d21a80060fdca0fdeae4c1f17726f2f8091ab4beb55a5d6bbd89d1791a0b4",
-      "hash_basis": "CRLF Drive-export bytes for 2026-08-15 canonical GitHub audit harness binding",
+      "sha256": "f4ab504077d433706fa460cea19fb4753277b869743bb8e4106c95053003200a",
+      "hash_basis": "CRLF Drive-export bytes (no terminal newline) for 2026-08-15 canonical GitHub audit harness binding",
       "owner": "wordpressqualityarchitect",
       "status": "contract",
       "last_verified": "2026-08-15",
