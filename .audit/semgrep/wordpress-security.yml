@@ -1,0 +1,74 @@
+rules:
+  - id: wordpress-request-data-to-wpdb-query
+    mode: taint
+    languages: [php]
+    severity: WARNING
+    message: User-controlled request data may reach a wpdb query sink. Treat as a candidate finding and verify sanitization, prepare usage and data flow manually.
+    pattern-sources:
+      - pattern-either:
+          - pattern: $_GET[$KEY]
+          - pattern: $_POST[$KEY]
+          - pattern: $_REQUEST[$KEY]
+          - pattern: $_COOKIE[$KEY]
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: absint(...)
+          - pattern: intval(...)
+          - pattern: sanitize_text_field(...)
+          - pattern: sanitize_key(...)
+          - pattern: esc_sql(...)
+          - pattern: $wpdb->prepare(...)
+    pattern-sinks:
+      - pattern-either:
+          - pattern: $wpdb->query(...)
+          - pattern: $wpdb->get_results(...)
+          - pattern: $wpdb->get_row(...)
+          - pattern: $wpdb->get_var(...)
+          - pattern: $wpdb->get_col(...)
+    metadata:
+      confidence: MEDIUM
+      evidence_role: candidate_only
+      cwe: CWE-89
+
+  - id: wordpress-request-data-to-unserialize
+    mode: taint
+    languages: [php]
+    severity: WARNING
+    message: User-controlled request data may reach unserialize(). Treat as a candidate finding; confirm the complete data path and exploitability manually.
+    pattern-sources:
+      - pattern-either:
+          - pattern: $_GET[$KEY]
+          - pattern: $_POST[$KEY]
+          - pattern: $_REQUEST[$KEY]
+          - pattern: $_COOKIE[$KEY]
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: absint(...)
+          - pattern: intval(...)
+    pattern-sinks:
+      - pattern: unserialize(...)
+    metadata:
+      confidence: MEDIUM
+      evidence_role: candidate_only
+      cwe: CWE-502
+
+  - id: wordpress-request-data-to-unsafe-redirect
+    mode: taint
+    languages: [php]
+    severity: WARNING
+    message: User-controlled request data may reach wp_redirect(). Verify allowlisting or replace with wp_safe_redirect() where appropriate.
+    pattern-sources:
+      - pattern-either:
+          - pattern: $_GET[$KEY]
+          - pattern: $_POST[$KEY]
+          - pattern: $_REQUEST[$KEY]
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: wp_validate_redirect(...)
+          - pattern: esc_url_raw(...)
+    pattern-sinks:
+      - pattern: wp_redirect(...)
+    metadata:
+      confidence: MEDIUM
+      evidence_role: candidate_only
+      cwe: CWE-601
