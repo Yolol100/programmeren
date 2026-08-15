@@ -24,6 +24,17 @@ De audit bevat waar toepasbaar:
 
 De centrale audittooling gebruikt exact gepinde versies. De door Composer opgeloste audit-dependencygraph moet bovendien exact de vastgelegde SHA-256 matchen; stille dependencydrift blokkeert de run.
 
+## Canoniek ChatGPT-contract
+
+`.audit/contract.json` is de machineleesbare projectafspraak voor de ChatGPT-route. Het legt vast wanneer deze harness wel en niet wordt gebruikt, welk requestschema geldt, welke repository- en veiligheidsgrenzen gelden en hoe een run na de request-write wordt teruggevonden en beoordeeld.
+
+De beslisregel is:
+
+- expliciete plugin-test/audit + expliciet geïdentificeerde GitHub-repository + bruikbare GitHub-apprechten → deze centrale harness;
+- gewone repository-inspectie of advies → geen audittrigger;
+- losse ZIP, lokale map of geplakte code zonder GitHub-target → lokale/meegeleverde auditroute, niet deze harness;
+- private doelrepository terwijl deze harness public is → fail-closed blokkeren.
+
 ## Starten
 
 ### Handmatig in GitHub
@@ -32,7 +43,20 @@ Ga naar **Actions → Full WordPress Plugin Audit → Run workflow** en vul mini
 
 ### Via ChatGPT
 
-Als jij zegt **"test deze plugin"**, schrijft ChatGPT via de gekoppelde GitHub-app de gewenste auditrequest naar `.audit/request.json`. Alleen een wijziging van dat bestand op `main` start de automatische ChatGPT-route. Gewone pushes naar andere bestanden en pull requests starten geen runnerjob.
+Als jij zegt **"test deze plugin"**, **"audit deze plugin"** of een equivalente expliciete auditopdracht geeft voor een geïdentificeerde GitHub-pluginrepo, schrijft ChatGPT via de gekoppelde GitHub-app de gewenste auditrequest naar `.audit/request.json`.
+
+Alleen een wijziging van dat bestand op `main` start de automatische ChatGPT-route. Gewone pushes naar andere bestanden en pull requests starten geen runnerjob.
+
+ChatGPT hoort daarbij:
+
+1. doelrepo/ref/pad eerst te verifiëren;
+2. de huidige `.audit/request.json` inclusief blob-SHA te lezen;
+3. voor iedere run een unieke `request_id` te schrijven;
+4. alleen `.audit/request.json` atomair op `main` bij te werken;
+5. de commit-SHA van die write te bewaren en readback te controleren;
+6. de `Full WordPress Plugin Audit`-run met exact die head-SHA te volgen;
+7. jobs, artifact en relevante evidence te lezen;
+8. scannerhits als kandidaat-findings aan `wordpressqualityarchitect` terug te geven, niet automatisch als bevestigde bugs.
 
 Voorbeeld request:
 
