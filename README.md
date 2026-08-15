@@ -66,4 +66,4 @@ Een groene run bewijst alleen de uitgevoerde statische en controlled-runtime che
 
 ## Ingebouwde self-test
 
-`.audit/fixtures/sample-plugin` is een minimale veilige fixture. `.audit/request.json` blijft als voorbeeld/configuratiesnapshot aanwezig; de daadwerkelijke ChatGPT-trigger gebruikt een `[audit]`-issue zodat de GitHub-koppeling de run betrouwbaar kan starten.
+`.audit/fixtures/programmeren-audit-fixture` is een minimale veilige fixture. `.audit/request.json` blijft als voorbeeld/configuratiesnapshot aanwezig; de daadwerkelijke ChatGPT-trigger gebruikt een `[audit]`-issue zodat de GitHub-koppeling de run betrouwbaar kan starten.
