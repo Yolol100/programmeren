@@ -99,7 +99,7 @@ jobs:
         run: |
           composer install --working-dir=.audit/tools --no-interaction --no-progress --prefer-dist --no-plugins --no-scripts
           .audit/tools/vendor/bin/phpcs --config-set installed_paths \
-            "${GITHUB_WORKSPACE}/.audit/tools/vendor/wp-coding-standards/wpcs,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/php-compatibility,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-wp"
+            "${GITHUB_WORKSPACE}/.audit/tools/vendor/wp-coding-standards/wpcs,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsutils,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsextra,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/php-compatibility,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-wp,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-paragonie"
           .audit/scripts/install_cli_tools.sh
 
       - name: Static, compatibility, dependency and secret audit
