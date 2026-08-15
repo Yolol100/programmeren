@@ -1,8 +1,8 @@
 {
-  "request_id": "bootstrap-self-test-2026-08-15-r1",
+  "request_id": "bootstrap-self-test-2026-08-15-r2",
   "target_repo": "Yolol100/programmeren",
   "target_ref": "main",
-  "target_path": ".audit/fixtures/sample-plugin",
+  "target_path": ".audit/fixtures/programmeren-audit-fixture",
   "run_runtime": true,
   "php_version": "8.3"
 }
