@@ -22,6 +22,8 @@ De audit bevat waar toepasbaar:
 - source-snapshot ZIP + SHA-256;
 - auditlogs en rapporten als GitHub Actions artifact.
 
+De centrale audittooling gebruikt exact gepinde versies. De door Composer opgeloste audit-dependencygraph moet bovendien exact de vastgelegde SHA-256 matchen; stille dependencydrift blokkeert de run.
+
 ## Starten
 
 ### Handmatig in GitHub
@@ -30,7 +32,7 @@ Ga naar **Actions → Full WordPress Plugin Audit → Run workflow** en vul mini
 
 ### Via ChatGPT
 
-Als jij zegt **"test deze plugin"**, maakt ChatGPT via de gekoppelde GitHub-app één tijdelijk issue met een titel die begint met `[audit]` en een JSON-body zoals hieronder. Alleen zo'n audit-issue start de job. Gewone pushes, pull requests en andere issues starten geen runnerjob.
+Als jij zegt **"test deze plugin"**, maakt ChatGPT via de gekoppelde GitHub-app één tijdelijk issue met een titel die begint met `[audit]` en een JSON-body zoals hieronder. Alleen een `[audit]`-issue dat door de eigenaar van deze repository is aangemaakt mag de runnerjob starten. Gewone pushes, pull requests en andere issues starten geen runnerjob.
 
 Voorbeeld issue-body:
 
@@ -58,6 +60,7 @@ Een groene run bewijst alleen de uitgevoerde statische en controlled-runtime che
 ## Veiligheid
 
 - De workflow heeft standaard alleen `contents: read`.
+- De ChatGPT issue-trigger is owner-only.
 - Credentials worden niet in artifacts opgenomen.
 - Het doelproject wordt niet gewijzigd of teruggeschreven.
 - Projectafhankelijkheden worden voor statische/dependencychecks niet met eigen Composer-scripts/plugins uitgevoerd.
@@ -66,4 +69,4 @@ Een groene run bewijst alleen de uitgevoerde statische en controlled-runtime che
 
 ## Ingebouwde self-test
 
-`.audit/fixtures/programmeren-audit-fixture` is een minimale veilige fixture. `.audit/request.json` blijft als voorbeeld/configuratiesnapshot aanwezig; de daadwerkelijke ChatGPT-trigger gebruikt een `[audit]`-issue zodat de GitHub-koppeling de run betrouwbaar kan starten.
+`.audit/fixtures/programmeren-audit-fixture` is een minimale veilige fixture. `.audit/request.json` blijft als voorbeeld/configuratiesnapshot aanwezig; de daadwerkelijke ChatGPT-trigger gebruikt een owner-only `[audit]`-issue zodat de GitHub-koppeling de run betrouwbaar kan starten.
