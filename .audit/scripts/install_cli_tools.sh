@@ -30,4 +30,15 @@ printf '%s\n' 'zizmor==1.28.0 --hash=sha256:ae2cab67ce713e760e0d1b61ad749d374693
   -r "$zizmor_requirements"
 ln -sf "$zizmor_venv/bin/zizmor" "$BIN_DIR/zizmor"
 
+# Semgrep Community Edition is local-only here. Do not login, start MCP, use remote registry configs,
+# or upload findings. The exact CLI version is pinned; scans use only the repository-owned rule file
+# with metrics explicitly disabled.
+semgrep_venv="${RUNNER_TEMP:-/tmp}/semgrep-venv"
+python3 -m venv "$semgrep_venv"
+"$semgrep_venv/bin/python" -m pip install \
+  --disable-pip-version-check \
+  --no-input \
+  "semgrep==1.170.0"
+ln -sf "$semgrep_venv/bin/semgrep" "$BIN_DIR/semgrep"
+
 echo "$BIN_DIR" >> "$GITHUB_PATH"
