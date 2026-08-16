@@ -37,6 +37,18 @@ def main() -> None:
     if required_fields != expected_fields:
         fail(f'request.required_fields drift: expected {sorted(expected_fields)}, got {sorted(required_fields)}')
 
+    routing = contract.get('profile_routing') or {}
+    expected_routing = {
+        'registry': '.audit/profiles/index.json',
+        'resolver': '.audit/scripts/resolve_profile.py',
+        'validator': '.audit/scripts/validate_profiles.py',
+        'default_profile': 'base',
+        'unknown_target_policy': 'base-only',
+    }
+    for key, value in expected_routing.items():
+        if routing.get(key) != value:
+            fail(f'profile_routing.{key} must be {value!r}')
+
     security = contract.get('security') or {}
     if security.get('harness_visibility') != 'public':
         fail('current repository contract must declare public harness visibility')
@@ -59,6 +71,12 @@ def main() -> None:
         'permissions:\n  contents: read',
         'REQUEST_FILE: .audit/request.json',
         '.audit/scripts/check_target_visibility.sh',
+        '.audit/scripts/validate_profiles.py',
+        '.audit/scripts/resolve_profile.py',
+        'profile-runtime:',
+        "needs.audit.outputs.specialized_runtime == 'true'",
+        'image: ${{ matrix.mysql_image }}',
+        'image: ${{ matrix.redis_image }}',
     ]
     for fragment in required_workflow_fragments:
         if fragment not in workflow:

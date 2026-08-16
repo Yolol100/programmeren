@@ -126,12 +126,15 @@ run_check semgrep env SEMGREP_SEND_METRICS=off semgrep scan \
   --output "$RESULTS/semgrep.json" \
   "$ROOT"
 
-# CI configuration checks apply only when the target repository contains workflows.
-if [[ -d "${GITHUB_WORKSPACE}/target-repo/.github/workflows" ]]; then
-  mapfile -t workflow_files < <(find "${GITHUB_WORKSPACE}/target-repo/.github/workflows" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
+# CI configuration checks apply only when the selected plugin scope itself contains workflows.
+# Do not inspect unrelated repository-level workflows when target_path points at a nested plugin.
+if [[ -d "$ROOT/.github/workflows" ]]; then
+  mapfile -t workflow_files < <(find "$ROOT/.github/workflows" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
   if (( ${#workflow_files[@]} > 0 )); then
     run_check actionlint actionlint -format '{{json .}}' "${workflow_files[@]}"
-    run_check zizmor zizmor --format plain --no-progress "${GITHUB_WORKSPACE}/target-repo"
+    run_check zizmor zizmor --format plain --no-progress "$ROOT"
+  else
+    printf 'actionlint\tSKIP(no-workflows)\t0\nzizmor\tSKIP(no-workflows)\t0\n' >> "$status_file"
   fi
 else
   printf 'actionlint\tSKIP\t0\nzizmor\tSKIP\t0\n' >> "$status_file"

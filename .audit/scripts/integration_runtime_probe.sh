@@ -114,8 +114,9 @@ add_filter('pre_http_request', static function ($pre, $args, $url) {
     if (false === strpos((string) $url, 'api.cloudflare.com/client/v4/')) return $pre;
     $mode = (string) get_option('programmeren_provider_mode', 'success');
     if ('timeout' === $mode) return new WP_Error('http_request_failed', 'programmeren simulated timeout');
+    if ('oversize' === $mode) return new WP_Error('http_request_failed', 'programmeren simulated response-size limit');
     $code = '429' === $mode ? 429 : ('500' === $mode ? 500 : 200);
-    $body = 'oversize' === $mode ? str_repeat('x', 70000) : wp_json_encode(array('success' => 200 === $code, 'mode' => $mode));
+    $body = wp_json_encode(array('success' => 200 === $code, 'mode' => $mode));
     return array('headers'=>array('content-type'=>'application/json'),'body'=>$body,'response'=>array('code'=>$code,'message'=>200===$code?'OK':'Simulated failure'),'cookies'=>array(),'filename'=>null);
 }, 10, 3);
 PHP
@@ -191,15 +192,18 @@ if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
 fi
 
 if wp_cmd eval 'exit(class_exists("UCP_Object_Cache")?0:3);' >/dev/null 2>&1; then
-    run_check "ucp-object-cache-capabilities" wp_cmd eval '$s=UCP_Object_Cache::status(true);echo wp_json_encode($s,JSON_PRETTY_PRINT)."\n";$ok=!empty($s["redis_connected"])&&!empty($s["apcu_available"]);exit($ok?0:1);'
-    run_check "ucp-redis-dropin-install" wp_cmd eval '$m=new ReflectionMethod("UCP_Object_Cache","write_dropin");$m->setAccessible(true);$r=$m->invoke(null,"redis");if(is_wp_error($r)){fwrite(STDERR,$r->get_error_code()."\n");exit(1);}exit($r===true?0:1);'
+    run_check "ucp-object-cache-capabilities" wp_cmd eval '$s=UCP_Object_Cache::status();echo wp_json_encode($s,JSON_PRETTY_PRINT)."\n";$ok=!empty($s["redis_connected"])&&!empty($s["apcu"]);exit($ok?0:1);'
+    run_check "ucp-redis-dropin-install" wp_cmd eval 'wp_set_current_user(1);UCP_Options::update(array("enable_redis_object_cache"=>1));$_REQUEST["_wpnonce"]=wp_create_nonce("ucp_install_redis_object_cache");(new UCP_Object_Cache())->install_redis_dropin();'
     run_check "ucp-redis-dropin-runtime" wp_cmd eval 'if(!wp_using_ext_object_cache())exit(1);wp_cache_set("programmeren_probe","redis-ok","programmeren",60);$v=wp_cache_get("programmeren_probe","programmeren");echo "value=".$v."\n";exit("redis-ok"===$v?0:1);'
-    run_check "ucp-redis-dropin-remove" wp_cmd eval '$r=UCP_Object_Cache::remove_owned_dropin();exit(is_wp_error($r)?1:0);'
-    run_check "ucp-apcu-dropin-install" wp_cmd eval '$m=new ReflectionMethod("UCP_Object_Cache","write_dropin");$m->setAccessible(true);$r=$m->invoke(null,"apcu");if(is_wp_error($r)){fwrite(STDERR,$r->get_error_code()."\n");exit(1);}exit($r===true?0:1);'
+    run_check "ucp-redis-dropin-remove" wp_cmd eval 'wp_set_current_user(1);$_REQUEST["_wpnonce"]=wp_create_nonce("ucp_remove_object_cache_dropin");(new UCP_Object_Cache())->remove_object_cache_dropin();'
+    run_check "ucp-apcu-dropin-install" wp_cmd eval 'wp_set_current_user(1);UCP_Options::update(array("enable_apcu_object_cache"=>1));$_REQUEST["_wpnonce"]=wp_create_nonce("ucp_install_apcu_object_cache");(new UCP_Object_Cache())->install_apcu_dropin();'
     run_check "ucp-apcu-dropin-runtime" wp_cmd eval 'if(!wp_using_ext_object_cache())exit(1);wp_cache_set("programmeren_probe","apcu-ok","programmeren",60);$v=wp_cache_get("programmeren_probe","programmeren");echo "value=".$v."\n";exit("apcu-ok"===$v?0:1);'
-    run_check "ucp-apcu-dropin-remove" wp_cmd eval '$r=UCP_Object_Cache::remove_owned_dropin();exit(is_wp_error($r)?1:0);'
+    run_check "ucp-apcu-dropin-remove" wp_cmd eval 'wp_set_current_user(1);$_REQUEST["_wpnonce"]=wp_create_nonce("ucp_remove_object_cache_dropin");(new UCP_Object_Cache())->remove_object_cache_dropin();'
     if wp_cmd eval 'exit(class_exists("UCP_Runtime_Tests")?0:3);' >/dev/null 2>&1; then
-        set +e; wp_cmd eval '$r=UCP_Runtime_Tests::run_all();echo wp_json_encode($r,JSON_PRETTY_PRINT)."\n";foreach($r as $v){if(is_array($v)&&isset($v["status"])&&"fail"===$v["status"])exit(1);}exit(0);' > "$RESULTS/integration-ucp-runtime-suite.json" 2> "$RESULTS/integration-ucp-runtime-suite.err"; UCP_SUITE_CODE=$?; set -e
+        set +e
+        wp_cmd eval '$required=array("test_wordpress_runtime","test_woocommerce_runtime","test_elementor_runtime","test_cloudflare_runtime","test_html_runtime","test_frontend_optimization_runtime","test_security_verification_runtime","test_stability_compatibility_runtime","test_woocommerce_checkout_safety_runtime","test_core_web_vitals_runtime","test_privacy_i18n_runtime","test_direct_cache_runtime","test_headless_renderer_runtime","test_release_runtime");$missing=array();foreach($required as $method){if(!method_exists("UCP_Runtime_Tests",$method))$missing[]=$method;}if($missing){fwrite(STDERR,"missing_runtime_methods=".implode(",",$missing)."\n");exit(1);}$r=UCP_Runtime_Tests::run_all();echo wp_json_encode($r,JSON_PRETTY_PRINT)."\n";foreach($r as $v){if(is_array($v)&&isset($v["status"])&&"fail"===$v["status"])exit(1);}exit(0);' > "$RESULTS/integration-ucp-runtime-suite.json" 2> "$RESULTS/integration-ucp-runtime-suite.err"
+        UCP_SUITE_CODE=$?
+        set -e
         [[ $UCP_SUITE_CODE -eq 0 ]] && record "ucp-runtime-suite" PASS 0 || record "ucp-runtime-suite" FAIL "$UCP_SUITE_CODE"
     fi
     write_provider_mock

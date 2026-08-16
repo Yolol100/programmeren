@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "id": "base",
+  "version": "1.0.0",
+  "description": "Generic WordPress plugin audit profile. No product-specific services or plugins are enabled.",
+  "extends": [],
+  "capabilities": [
+    "audit.php-syntax",
+    "audit.wpcs",
+    "audit.phpcompatibility",
+    "audit.phpstan-wordpress",
+    "audit.dependencies",
+    "audit.secrets",
+    "audit.semgrep",
+    "audit.trivy",
+    "wordpress.plugin-check",
+    "wordpress.wp-env-smoke"
+  ],
+  "runtime": {
+    "specialized": false,
+    "script": "",
+    "php_extensions": "",
+    "node_version": "",
+    "mysql_image": "",
+    "redis_image": "",
+    "wordpress_plugins": []
+  }
+}

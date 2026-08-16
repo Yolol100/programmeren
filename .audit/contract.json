@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "harness": {
     "repository": "Yolol100/programmeren",
     "default_branch": "main",
@@ -42,13 +42,27 @@
     },
     "request_id_rule": "Generate a unique value for every requested run; never reuse the previous request_id."
   },
+  "profile_routing": {
+    "registry": ".audit/profiles/index.json",
+    "resolver": ".audit/scripts/resolve_profile.py",
+    "validator": ".audit/scripts/validate_profiles.py",
+    "default_profile": "base",
+    "unknown_target_policy": "base-only",
+    "selection_policy": "Use an exact registered repository binding or an exact registered plugin identity. If no specialized binding matches, select base. If multiple specialized profiles conflict, fail closed.",
+    "specialized_tool_policy": "Product-specific services, PHP extensions, WordPress plugins, browser tooling, provider mocks and runtime probes may run only when declared by the resolved repository-owned profile.",
+    "evidence_file": "audit-results/profile-resolution.json"
+  },
   "execution": [
     "Resolve and verify the target repository, ref and plugin path before writing.",
     "Read the current .audit/request.json and retain its blob SHA for an atomic update.",
     "Write the complete request to .audit/request.json on main using the current blob SHA.",
     "Read back the request and commit SHA; only that request-file change is the automatic ChatGPT trigger.",
     "Locate the Full WordPress Plugin Audit run whose head SHA equals the request commit SHA.",
-    "Inspect job outcomes and the wordpress-plugin-audit artifact before interpreting findings.",
+    "Run the generic base audit for every target.",
+    "Resolve the plugin profile after target checkout and record the profile fingerprint and capabilities.",
+    "Run specialized services and probes only when a validated specialized profile matched; unknown plugins remain base-only.",
+    "Re-resolve and fingerprint the profile immediately before a specialized runtime job to prevent stale or switched profile execution.",
+    "Inspect job outcomes and all run-scoped artifacts before interpreting findings.",
     "Treat scanner failures as candidate findings; wordpressqualityarchitect confirms or rejects bugs against the applicable oracle.",
     "Do not describe a green source/controlled-runtime audit as staging, production, browser/device or provider proof."
   ],
@@ -57,7 +71,9 @@
     "private_target_policy": "blocked",
     "target_write_policy": "read-only",
     "request_write_scope": ".audit/request.json only",
-    "credentials_in_artifacts": false
+    "credentials_in_artifacts": false,
+    "profile_code_source": "harness repository only",
+    "unmatched_specialized_runtime": "blocked"
   },
   "ownership": {
     "domain_owner": "wordpressqualityarchitect",

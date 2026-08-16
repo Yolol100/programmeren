@@ -18,7 +18,7 @@ on:
         default: '.'
         type: string
       run_runtime:
-        description: 'Run WordPress Plugin Check + controlled runtime probes'
+        description: 'Run generic WordPress runtime and any matched plugin profile runtime'
         required: true
         default: true
         type: boolean
@@ -42,33 +42,25 @@ concurrency:
 
 jobs:
   audit:
-    name: One-job full audit
+    name: Generic plugin audit
     runs-on: ubuntu-latest
-    timeout-minutes: 55
-    services:
-      mysql:
-        image: mysql:8.4
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: wordpress
-          MYSQL_USER: wordpress
-          MYSQL_PASSWORD: wordpress
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=12
-      redis:
-        image: redis:7.4-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=12
+    timeout-minutes: 40
+    outputs:
+      request_id: ${{ steps.request.outputs.request_id }}
+      target_repo: ${{ steps.request.outputs.target_repo }}
+      target_ref: ${{ steps.request.outputs.target_ref }}
+      target_path: ${{ steps.request.outputs.target_path }}
+      plugin_dir: ${{ steps.request.outputs.plugin_dir }}
+      run_runtime: ${{ steps.request.outputs.run_runtime }}
+      php_version: ${{ steps.request.outputs.php_version }}
+      profile_id: ${{ steps.profile.outputs.profile_id }}
+      profile_version: ${{ steps.profile.outputs.profile_version }}
+      profile_file: ${{ steps.profile.outputs.profile_file }}
+      profile_match: ${{ steps.profile.outputs.profile_match }}
+      profile_fingerprint: ${{ steps.profile.outputs.profile_fingerprint }}
+      capabilities: ${{ steps.profile.outputs.capabilities }}
+      specialized_runtime: ${{ steps.profile.outputs.specialized_runtime }}
+      runtime_matrix: ${{ steps.profile.outputs.runtime_matrix }}
 
     steps:
       - name: Checkout audit harness
@@ -79,6 +71,14 @@ jobs:
       - name: Validate canonical audit harness contract
         shell: bash
         run: python3 .audit/scripts/validate_contract.py
+
+      - name: Validate plugin-aware audit profiles
+        shell: bash
+        run: python3 .audit/scripts/validate_profiles.py
+
+      - name: Run profile routing regression tests
+        shell: bash
+        run: python3 .audit/scripts/test_profile_routing.py
 
       - name: Resolve and validate audit request
         id: request
@@ -113,18 +113,25 @@ jobs:
           persist-credentials: false
           token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
 
+      - name: Resolve plugin-specific audit profile
+        id: profile
+        shell: bash
+        env:
+          TARGET_REPO: ${{ steps.request.outputs.target_repo }}
+          PLUGIN_DIR: ${{ steps.request.outputs.plugin_dir }}
+          RESULTS_DIR: audit-results
+        run: python3 .audit/scripts/resolve_profile.py >> "$GITHUB_OUTPUT"
+
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ steps.request.outputs.php_version }}
-          extensions: mysqli, redis, apcu
-          ini-values: apc.enable_cli=1, display_errors=Off, log_errors=On
-          tools: composer:v2, wp-cli:2.12.0
+          tools: composer:v2
           coverage: none
         env:
           fail-fast: true
 
-      - name: Set up Node for browser runtime
+      - name: Set up Node for generic WordPress runtime
         if: ${{ steps.request.outputs.run_runtime == 'true' }}
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -147,13 +154,12 @@ jobs:
           mkdir -p audit-results
           cp .audit/tools/composer.lock audit-results/audit-tools-composer.lock
 
-      - name: Record audit tool provenance
+      - name: Record generic audit tool provenance
         shell: bash
         run: |
           {
             php -r 'echo "php=" . PHP_VERSION . PHP_EOL;'
             composer --version
-            wp --version
             .audit/tools/vendor/bin/phpcs --version
             .audit/tools/vendor/bin/phpstan --version
             actionlint -version
@@ -197,26 +203,14 @@ jobs:
           build-dir: ${{ steps.request.outputs.plugin_dir }}
           strict: 'false'
 
-      - name: Sentry-light wp-env runtime probe
+      - name: Generic wp-env runtime probe
         id: runtime
         if: ${{ always() && steps.request.outputs.run_runtime == 'true' && steps.tools.outcome == 'success' }}
         continue-on-error: true
         shell: bash
         run: .audit/scripts/runtime_probe.sh
 
-      - name: Ephemeral WordPress integration runtime
-        id: integration
-        if: ${{ always() && steps.request.outputs.run_runtime == 'true' && steps.tools.outcome == 'success' }}
-        continue-on-error: true
-        shell: bash
-        env:
-          PLUGIN_DIR: ${{ steps.request.outputs.plugin_dir }}
-          TARGET_REPO: ${{ steps.request.outputs.target_repo }}
-          TARGET_REF: ${{ steps.request.outputs.target_ref }}
-          TARGET_PATH: ${{ steps.request.outputs.target_path }}
-        run: bash .audit/scripts/integration_runtime_probe.sh
-
-      - name: Write audit summary
+      - name: Write generic audit summary
         if: always()
         shell: bash
         env:
@@ -224,12 +218,15 @@ jobs:
           TARGET_REPO: ${{ steps.request.outputs.target_repo }}
           TARGET_REF: ${{ steps.request.outputs.target_ref }}
           TARGET_PATH: ${{ steps.request.outputs.target_path }}
+          PROFILE_ID: ${{ steps.profile.outputs.profile_id }}
+          PROFILE_MATCH: ${{ steps.profile.outputs.profile_match }}
+          PROFILE_FINGERPRINT: ${{ steps.profile.outputs.profile_fingerprint }}
+          CAPABILITIES: ${{ steps.profile.outputs.capabilities }}
           TOOLS_OUTCOME: ${{ steps.tools.outcome }}
           STATIC_OUTCOME: ${{ steps.static.outcome }}
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
-          INTEGRATION_OUTCOME: ${{ steps.integration.outcome }}
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
         run: |
           mkdir -p audit-results
@@ -240,19 +237,21 @@ jobs:
             echo "- repository: \`$TARGET_REPO\`"
             echo "- ref: \`$TARGET_REF\`"
             echo "- path: \`$TARGET_PATH\`"
+            echo "- profile: \`${PROFILE_ID:-base}\`"
+            echo "- profile_match: \`${PROFILE_MATCH:-default}\`"
+            echo "- profile_fingerprint: \`${PROFILE_FINGERPRINT:-unknown}\`"
+            echo "- capabilities: \`${CAPABILITIES:-none}\`"
             echo "- tooling: \`$TOOLS_OUTCOME\`"
             echo "- static: \`$STATIC_OUTCOME\`"
             echo "- trivy: \`$TRIVY_OUTCOME\`"
             echo "- plugin_check: \`${PLUGIN_CHECK_OUTCOME:-skipped}\`"
-            echo "- wp_env_runtime: \`${RUNTIME_OUTCOME:-skipped}\`"
-            echo "- integration_runtime: \`${INTEGRATION_OUTCOME:-skipped}\`"
+            echo "- generic_wp_env_runtime: \`${RUNTIME_OUTCOME:-skipped}\`"
             echo
-            echo "The integration runtime is disposable CI evidence: WordPress + MySQL + WooCommerce + Redis/APCu + browser/concurrency probes."
-            echo "External providers are mocked unless real credentials are explicitly supplied; mocked provider success is not live-provider proof."
+            echo "Unknown or unmatched plugins use the base profile only. Product-specific services, WordPress plugins and probes are enabled only by a validated matched profile."
             echo "A scanner failure is a candidate finding, not automatically a confirmed bug."
           } | tee audit-results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload complete audit evidence
+      - name: Upload generic audit evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -261,7 +260,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Final quality gate
+      - name: Generic quality gate
         if: always()
         shell: bash
         env:
@@ -270,7 +269,6 @@ jobs:
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
-          INTEGRATION_OUTCOME: ${{ steps.integration.outcome }}
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
         run: |
           failures=0
@@ -280,10 +278,143 @@ jobs:
           if [[ "$RUN_RUNTIME" == "true" ]]; then
             [[ "$PLUGIN_CHECK_OUTCOME" == "success" ]] || failures=$((failures + 1))
             [[ "$RUNTIME_OUTCOME" == "success" ]] || failures=$((failures + 1))
-            [[ "$INTEGRATION_OUTCOME" == "success" ]] || failures=$((failures + 1))
           fi
           if (( failures > 0 )); then
-            echo "Audit gate failed in ${failures} evidence layer(s). Review the uploaded evidence."
+            echo "Generic audit gate failed in ${failures} evidence layer(s). Review the uploaded evidence."
             exit 1
           fi
-          echo "Audit gate passed for the configured evidence layers."
+          echo "Generic audit gate passed for the configured evidence layers."
+
+  profile-runtime:
+    name: Plugin-specific runtime (${{ matrix.profile_id }})
+    needs: audit
+    if: ${{ always() && needs.audit.result != 'cancelled' && needs.audit.outputs.run_runtime == 'true' && needs.audit.outputs.specialized_runtime == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.audit.outputs.runtime_matrix) }}
+    services:
+      mysql:
+        image: ${{ matrix.mysql_image }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+          MYSQL_USER: wordpress
+          MYSQL_PASSWORD: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: ${{ matrix.redis_image }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Checkout target repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: ${{ needs.audit.outputs.target_repo }}
+          ref: ${{ needs.audit.outputs.target_ref }}
+          path: target-repo
+          fetch-depth: 1
+          persist-credentials: false
+          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
+
+      - name: Re-resolve profile before specialized execution
+        id: profile
+        shell: bash
+        env:
+          TARGET_REPO: ${{ needs.audit.outputs.target_repo }}
+          PLUGIN_DIR: ${{ needs.audit.outputs.plugin_dir }}
+          RESULTS_DIR: audit-results
+        run: python3 .audit/scripts/resolve_profile.py >> "$GITHUB_OUTPUT"
+
+      - name: Verify profile fingerprint is unchanged
+        shell: bash
+        env:
+          EXPECTED_PROFILE: ${{ needs.audit.outputs.profile_id }}
+          ACTUAL_PROFILE: ${{ steps.profile.outputs.profile_id }}
+          EXPECTED_FINGERPRINT: ${{ needs.audit.outputs.profile_fingerprint }}
+          ACTUAL_FINGERPRINT: ${{ steps.profile.outputs.profile_fingerprint }}
+        run: |
+          [[ "$ACTUAL_PROFILE" == "$EXPECTED_PROFILE" ]] || { echo "Profile changed between jobs" >&2; exit 2; }
+          [[ "$ACTUAL_FINGERPRINT" == "$EXPECTED_FINGERPRINT" ]] || { echo "Profile fingerprint changed between jobs" >&2; exit 2; }
+
+      - name: Set up profile PHP runtime
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ needs.audit.outputs.php_version }}
+          extensions: ${{ matrix.php_extensions }}
+          ini-values: apc.enable_cli=1, display_errors=Off, log_errors=On
+          tools: composer:v2, wp-cli:2.12.0
+          coverage: none
+        env:
+          fail-fast: true
+
+      - name: Set up profile Node runtime
+        if: ${{ matrix.node_version != '' }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node_version }}
+
+      - name: Record profile runtime provenance
+        shell: bash
+        run: |
+          mkdir -p audit-results
+          {
+            echo "profile=${{ matrix.profile_id }}"
+            echo "profile_fingerprint=${{ needs.audit.outputs.profile_fingerprint }}"
+            echo "capabilities=${{ needs.audit.outputs.capabilities }}"
+            php -r 'echo "php=" . PHP_VERSION . PHP_EOL;'
+            wp --version
+            node --version 2>/dev/null || true
+            npm --version 2>/dev/null || true
+          } > audit-results/profile-tool-versions.txt
+
+      - name: Run matched plugin profile runtime
+        shell: bash
+        env:
+          PLUGIN_DIR: ${{ needs.audit.outputs.plugin_dir }}
+          TARGET_REPO: ${{ needs.audit.outputs.target_repo }}
+          TARGET_REF: ${{ needs.audit.outputs.target_ref }}
+          TARGET_PATH: ${{ needs.audit.outputs.target_path }}
+        run: bash "${{ matrix.runtime_script }}"
+
+      - name: Write profile runtime summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Plugin-specific runtime"
+            echo
+            echo "- profile: \`${{ matrix.profile_id }}\`"
+            echo "- matched_by: \`${{ needs.audit.outputs.profile_match }}\`"
+            echo "- fingerprint: \`${{ needs.audit.outputs.profile_fingerprint }}\`"
+            echo "- capabilities: \`${{ needs.audit.outputs.capabilities }}\`"
+            echo
+            echo "This job runs only because a validated plugin profile matched. An unmatched plugin never starts these services or probes."
+          } | tee audit-results/PROFILE-SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload plugin-specific runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wordpress-plugin-profile-${{ matrix.profile_id }}-${{ github.run_id }}
+          path: audit-results/
+          if-no-files-found: warn
+          retention-days: 14

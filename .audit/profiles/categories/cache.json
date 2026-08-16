@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "id": "cache",
+  "version": "1.0.0",
+  "description": "Reusable cache-plugin capability layer. It is never selected directly without a plugin binding.",
+  "extends": [
+    "base"
+  ],
+  "capabilities": [
+    "runtime.mysql",
+    "cache.redis",
+    "cache.apcu",
+    "runtime.concurrent-http",
+    "browser.playwright"
+  ],
+  "runtime": {
+    "specialized": true,
+    "php_extensions": "mysqli, redis, apcu",
+    "node_version": "24",
+    "mysql_image": "mysql:8.4",
+    "redis_image": "redis:7.4-alpine"
+  }
+}
