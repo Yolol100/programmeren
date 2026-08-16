@@ -214,7 +214,7 @@ jobs:
           TARGET_REPO: ${{ steps.request.outputs.target_repo }}
           TARGET_REF: ${{ steps.request.outputs.target_ref }}
           TARGET_PATH: ${{ steps.request.outputs.target_path }}
-        run: .audit/scripts/integration_runtime_probe.sh
+        run: bash .audit/scripts/integration_runtime_probe.sh
 
       - name: Write audit summary
         if: always()
