@@ -18,7 +18,7 @@ on:
         default: '.'
         type: string
       run_runtime:
-        description: 'Run WordPress Plugin Check + controlled runtime probe'
+        description: 'Run WordPress Plugin Check + controlled runtime probes'
         required: true
         default: true
         type: boolean
@@ -44,7 +44,31 @@ jobs:
   audit:
     name: One-job full audit
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+          MYSQL_USER: wordpress
+          MYSQL_PASSWORD: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
 
     steps:
       - name: Checkout audit harness
@@ -93,8 +117,18 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ steps.request.outputs.php_version }}
-          tools: composer:v2
+          extensions: mysqli, redis, apcu
+          ini-values: apc.enable_cli=1, display_errors=Off, log_errors=On
+          tools: composer:v2, wp-cli:2.12.0
           coverage: none
+        env:
+          fail-fast: true
+
+      - name: Set up Node for browser runtime
+        if: ${{ steps.request.outputs.run_runtime == 'true' }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
 
       - name: Install pinned audit tooling
         id: tools
@@ -119,6 +153,7 @@ jobs:
           {
             php -r 'echo "php=" . PHP_VERSION . PHP_EOL;'
             composer --version
+            wp --version
             .audit/tools/vendor/bin/phpcs --version
             .audit/tools/vendor/bin/phpstan --version
             actionlint -version
@@ -162,12 +197,24 @@ jobs:
           build-dir: ${{ steps.request.outputs.plugin_dir }}
           strict: 'false'
 
-      - name: Sentry-light runtime probe
+      - name: Sentry-light wp-env runtime probe
         id: runtime
         if: ${{ always() && steps.request.outputs.run_runtime == 'true' && steps.tools.outcome == 'success' }}
         continue-on-error: true
         shell: bash
         run: .audit/scripts/runtime_probe.sh
+
+      - name: Ephemeral WordPress integration runtime
+        id: integration
+        if: ${{ always() && steps.request.outputs.run_runtime == 'true' && steps.tools.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          PLUGIN_DIR: ${{ steps.request.outputs.plugin_dir }}
+          TARGET_REPO: ${{ steps.request.outputs.target_repo }}
+          TARGET_REF: ${{ steps.request.outputs.target_ref }}
+          TARGET_PATH: ${{ steps.request.outputs.target_path }}
+        run: .audit/scripts/integration_runtime_probe.sh
 
       - name: Write audit summary
         if: always()
@@ -182,6 +229,7 @@ jobs:
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          INTEGRATION_OUTCOME: ${{ steps.integration.outcome }}
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
         run: |
           mkdir -p audit-results
@@ -196,8 +244,11 @@ jobs:
             echo "- static: \`$STATIC_OUTCOME\`"
             echo "- trivy: \`$TRIVY_OUTCOME\`"
             echo "- plugin_check: \`${PLUGIN_CHECK_OUTCOME:-skipped}\`"
-            echo "- runtime: \`${RUNTIME_OUTCOME:-skipped}\`"
+            echo "- wp_env_runtime: \`${RUNTIME_OUTCOME:-skipped}\`"
+            echo "- integration_runtime: \`${INTEGRATION_OUTCOME:-skipped}\`"
             echo
+            echo "The integration runtime is disposable CI evidence: WordPress + MySQL + WooCommerce + Redis/APCu + browser/concurrency probes."
+            echo "External providers are mocked unless real credentials are explicitly supplied; mocked provider success is not live-provider proof."
             echo "A scanner failure is a candidate finding, not automatically a confirmed bug."
           } | tee audit-results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -219,6 +270,7 @@ jobs:
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          INTEGRATION_OUTCOME: ${{ steps.integration.outcome }}
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
         run: |
           failures=0
@@ -228,6 +280,7 @@ jobs:
           if [[ "$RUN_RUNTIME" == "true" ]]; then
             [[ "$PLUGIN_CHECK_OUTCOME" == "success" ]] || failures=$((failures + 1))
             [[ "$RUNTIME_OUTCOME" == "success" ]] || failures=$((failures + 1))
+            [[ "$INTEGRATION_OUTCOME" == "success" ]] || failures=$((failures + 1))
           fi
           if (( failures > 0 )); then
             echo "Audit gate failed in ${failures} evidence layer(s). Review the uploaded evidence."
