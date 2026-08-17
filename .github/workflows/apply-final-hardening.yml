@@ -25,6 +25,14 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          expr_open = '$' + '{{'
+          expr_close = '}}'
+          request_ref = expr_open + ' steps.request.outputs.target_ref ' + expr_close
+          target_sha = expr_open + ' steps.target_commit.outputs.sha ' + expr_close
+          token_expr = expr_open + ' secrets.PLUGIN_REPO_TOKEN || github.token ' + expr_close
+          needs_ref = expr_open + ' needs.audit.outputs.target_ref ' + expr_close
+          needs_sha = expr_open + ' needs.audit.outputs.target_sha ' + expr_close
+
           def replace_once(path, old, new, label):
               text = path.read_text(encoding='utf-8')
               count = text.count(old)
@@ -35,26 +43,26 @@ jobs:
           workflow = Path('.github/workflows/full-plugin-audit.yml')
           replace_once(
               workflow,
-              '      target_ref: ${{ steps.request.outputs.target_ref }}\n      target_path:',
-              '      target_ref: ${{ steps.request.outputs.target_ref }}\n      target_sha: ${{ steps.target_commit.outputs.sha }}\n      target_path:',
+              f'      target_ref: {request_ref}\n      target_path:',
+              f'      target_ref: {request_ref}\n      target_sha: {target_sha}\n      target_path:',
               'audit output target_sha',
           )
           replace_once(
               workflow,
-              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Resolve plugin-specific audit profile',
-              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Capture immutable target commit\n        id: target_commit\n        shell: bash\n        run: |\n          sha="$(git -C target-repo rev-parse HEAD)"\n          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid target commit SHA: $sha" >&2; exit 2; }\n          echo "sha=$sha" >> "$GITHUB_OUTPUT"\n\n      - name: Resolve plugin-specific audit profile',
+              f'          token: {token_expr}\n\n      - name: Resolve plugin-specific audit profile',
+              f'          token: {token_expr}\n\n      - name: Capture immutable target commit\n        id: target_commit\n        shell: bash\n        run: |\n          sha="$(git -C target-repo rev-parse HEAD)"\n          [[ "$sha" =~ ^[0-9a-f]{{40}}$ ]] || {{ echo "Invalid target commit SHA: $sha" >&2; exit 2; }}\n          echo "sha=$sha" >> "$GITHUB_OUTPUT"\n\n      - name: Resolve plugin-specific audit profile',
               'capture target commit',
           )
           replace_once(
               workflow,
-              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          GH_TOKEN:',
-              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          TARGET_SHA: ${{ steps.target_commit.outputs.sha }}\n          GH_TOKEN:',
+              f'          TARGET_REF: {request_ref}\n          GH_TOKEN:',
+              f'          TARGET_REF: {request_ref}\n          TARGET_SHA: {target_sha}\n          GH_TOKEN:',
               'static target sha env',
           )
           replace_once(
               workflow,
-              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          TARGET_PATH:',
-              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          TARGET_SHA: ${{ steps.target_commit.outputs.sha }}\n          TARGET_PATH:',
+              f'          TARGET_REF: {request_ref}\n          TARGET_PATH:',
+              f'          TARGET_REF: {request_ref}\n          TARGET_SHA: {target_sha}\n          TARGET_PATH:',
               'summary target sha env',
           )
           replace_once(
@@ -65,14 +73,14 @@ jobs:
           )
           replace_once(
               workflow,
-              '          ref: ${{ needs.audit.outputs.target_ref }}\n          path: target-repo',
-              '          ref: ${{ needs.audit.outputs.target_sha }}\n          path: target-repo',
+              f'          ref: {needs_ref}\n          path: target-repo',
+              f'          ref: {needs_sha}\n          path: target-repo',
               'specialized checkout immutable ref',
           )
           replace_once(
               workflow,
-              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Re-resolve profile before specialized execution',
-              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Verify immutable target commit\n        shell: bash\n        env:\n          EXPECTED_TARGET_SHA: ${{ needs.audit.outputs.target_sha }}\n        run: |\n          actual="$(git -C target-repo rev-parse HEAD)"\n          [[ "$actual" == "$EXPECTED_TARGET_SHA" ]] || { echo "Target commit changed between audit jobs" >&2; exit 2; }\n\n      - name: Re-resolve profile before specialized execution',
+              f'          token: {token_expr}\n\n      - name: Re-resolve profile before specialized execution',
+              f'          token: {token_expr}\n\n      - name: Verify immutable target commit\n        shell: bash\n        env:\n          EXPECTED_TARGET_SHA: {needs_sha}\n        run: |\n          actual="$(git -C target-repo rev-parse HEAD)"\n          [[ "$actual" == "$EXPECTED_TARGET_SHA" ]] || {{ echo "Target commit changed between audit jobs" >&2; exit 2; }}\n\n      - name: Re-resolve profile before specialized execution',
               'specialized target verification',
           )
 
