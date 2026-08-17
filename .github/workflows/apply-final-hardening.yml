@@ -1,0 +1,111 @@
+name: Apply final hardening
+
+on:
+  push:
+    branches:
+      - fix/final-hardening-20260817
+    paths:
+      - '.github/workflows/apply-final-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: Bind audit jobs to one immutable target commit
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, got {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          workflow = Path('.github/workflows/full-plugin-audit.yml')
+          replace_once(
+              workflow,
+              '      target_ref: ${{ steps.request.outputs.target_ref }}\n      target_path:',
+              '      target_ref: ${{ steps.request.outputs.target_ref }}\n      target_sha: ${{ steps.target_commit.outputs.sha }}\n      target_path:',
+              'audit output target_sha',
+          )
+          replace_once(
+              workflow,
+              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Resolve plugin-specific audit profile',
+              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Capture immutable target commit\n        id: target_commit\n        shell: bash\n        run: |\n          sha="$(git -C target-repo rev-parse HEAD)"\n          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid target commit SHA: $sha" >&2; exit 2; }\n          echo "sha=$sha" >> "$GITHUB_OUTPUT"\n\n      - name: Resolve plugin-specific audit profile',
+              'capture target commit',
+          )
+          replace_once(
+              workflow,
+              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          GH_TOKEN:',
+              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          TARGET_SHA: ${{ steps.target_commit.outputs.sha }}\n          GH_TOKEN:',
+              'static target sha env',
+          )
+          replace_once(
+              workflow,
+              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          TARGET_PATH:',
+              '          TARGET_REF: ${{ steps.request.outputs.target_ref }}\n          TARGET_SHA: ${{ steps.target_commit.outputs.sha }}\n          TARGET_PATH:',
+              'summary target sha env',
+          )
+          replace_once(
+              workflow,
+              '            echo "- ref: \\`$TARGET_REF\\`"\n            echo "- path:',
+              '            echo "- ref: \\`$TARGET_REF\\`"\n            echo "- commit: \\`$TARGET_SHA\\`"\n            echo "- path:',
+              'summary commit line',
+          )
+          replace_once(
+              workflow,
+              '          ref: ${{ needs.audit.outputs.target_ref }}\n          path: target-repo',
+              '          ref: ${{ needs.audit.outputs.target_sha }}\n          path: target-repo',
+              'specialized checkout immutable ref',
+          )
+          replace_once(
+              workflow,
+              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Re-resolve profile before specialized execution',
+              '          token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}\n\n      - name: Verify immutable target commit\n        shell: bash\n        env:\n          EXPECTED_TARGET_SHA: ${{ needs.audit.outputs.target_sha }}\n        run: |\n          actual="$(git -C target-repo rev-parse HEAD)"\n          [[ "$actual" == "$EXPECTED_TARGET_SHA" ]] || { echo "Target commit changed between audit jobs" >&2; exit 2; }\n\n      - name: Re-resolve profile before specialized execution',
+              'specialized target verification',
+          )
+
+          static = Path('.audit/scripts/run_static_audit.sh')
+          replace_once(
+              static,
+              ': "${TARGET_REF:?TARGET_REF is required}"\n\nROOT=',
+              ': "${TARGET_REF:?TARGET_REF is required}"\n: "${TARGET_SHA:?TARGET_SHA is required}"\n[[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "TARGET_SHA must be a full lowercase commit SHA" >&2; exit 2; }\n\nROOT=',
+              'static target sha requirement',
+          )
+          replace_once(
+              static,
+              'ref=$TARGET_REF\nplugin_dir=',
+              'ref=$TARGET_REF\ncommit=$TARGET_SHA\nplugin_dir=',
+              'static inventory commit',
+          )
+
+          contract = Path('.github/workflows/toolkit-contract.yml')
+          replace_once(
+              contract,
+              "          assert 'composer install' not in static, 'static audit must not install arbitrary target Composer dependencies'\n          print('profile-aware PHPUnit policy: OK')",
+              "          assert 'composer install' not in static, 'static audit must not install arbitrary target Composer dependencies'\n          workflow=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')\n          assert 'target_sha:' in workflow, 'full audit must expose the resolved immutable target SHA'\n          assert 'needs.audit.outputs.target_sha' in workflow, 'specialized runtime must use the resolved target SHA'\n          assert 'Capture immutable target commit' in workflow and 'Verify immutable target commit' in workflow\n          assert 'commit=$TARGET_SHA' in static, 'static evidence inventory must bind to the resolved target commit'\n          print('profile-aware PHPUnit and target provenance policy: OK')",
+              'toolkit target provenance assertions',
+          )
+          PY
+          bash -n .audit/scripts/run_static_audit.sh
+          python3 .audit/scripts/validate_profiles.py
+          python3 .audit/scripts/test_profile_routing.py
+      - name: Commit hardening
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/full-plugin-audit.yml .github/workflows/toolkit-contract.yml .audit/scripts/run_static_audit.sh
+          git commit -m 'fix: bind audit evidence to immutable target commit'
+          git push origin HEAD:fix/final-hardening-20260817
