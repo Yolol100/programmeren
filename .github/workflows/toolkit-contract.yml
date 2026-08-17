@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'toolkit-contract.json'
+      - '.audit/profiles/**'
       - '.audit/semgrep/**'
       - '.audit/scripts/**'
       - '.github/workflows/**'
@@ -39,6 +40,23 @@ jobs:
           assert 'semgrep login' not in static.lower()
           assert '--metrics=off' in static
           print('toolkit-contract: OK')
+          PY
+      - name: Validate audit profiles and profile routing
+        shell: bash
+        run: |
+          python3 .audit/scripts/validate_profiles.py
+          python3 .audit/scripts/test_profile_routing.py
+          bash -n .audit/scripts/run_static_audit.sh
+          python3 - <<'PY'
+          import json, pathlib
+          base=json.load(open('.audit/profiles/base.json', encoding='utf-8'))
+          assert 'audit.phpunit-project' in base.get('capabilities', []), 'base profile must declare audit.phpunit-project'
+          static=pathlib.Path('.audit/scripts/run_static_audit.sh').read_text(encoding='utf-8')
+          assert 'has_profile_capability audit.phpunit-project' in static
+          assert 'project-dependency-not-installed' in static
+          assert 'profile-disabled' in static
+          assert 'composer install' not in static, 'static audit must not install arbitrary target Composer dependencies'
+          print('profile-aware PHPUnit policy: OK')
           PY
       - name: Validate local Semgrep rules with pinned CE CLI
         shell: bash
