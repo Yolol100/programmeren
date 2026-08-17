@@ -49,6 +49,7 @@ jobs:
       request_id: ${{ steps.request.outputs.request_id }}
       target_repo: ${{ steps.request.outputs.target_repo }}
       target_ref: ${{ steps.request.outputs.target_ref }}
+      target_sha: ${{ steps.target_commit.outputs.sha }}
       target_path: ${{ steps.request.outputs.target_path }}
       plugin_dir: ${{ steps.request.outputs.plugin_dir }}
       run_runtime: ${{ steps.request.outputs.run_runtime }}
@@ -113,6 +114,14 @@ jobs:
           persist-credentials: false
           token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
 
+      - name: Capture immutable target commit
+        id: target_commit
+        shell: bash
+        run: |
+          sha="$(git -C target-repo rev-parse HEAD)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid target commit SHA: $sha" >&2; exit 2; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: Resolve plugin-specific audit profile
         id: profile
         shell: bash
@@ -175,6 +184,7 @@ jobs:
           PLUGIN_DIR: ${{ steps.request.outputs.plugin_dir }}
           TARGET_REPO: ${{ steps.request.outputs.target_repo }}
           TARGET_REF: ${{ steps.request.outputs.target_ref }}
+          TARGET_SHA: ${{ steps.target_commit.outputs.sha }}
           GH_TOKEN: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
         run: .audit/scripts/run_static_audit.sh
 
@@ -217,6 +227,7 @@ jobs:
           REQUEST_ID: ${{ steps.request.outputs.request_id }}
           TARGET_REPO: ${{ steps.request.outputs.target_repo }}
           TARGET_REF: ${{ steps.request.outputs.target_ref }}
+          TARGET_SHA: ${{ steps.target_commit.outputs.sha }}
           TARGET_PATH: ${{ steps.request.outputs.target_path }}
           PROFILE_ID: ${{ steps.profile.outputs.profile_id }}
           PROFILE_MATCH: ${{ steps.profile.outputs.profile_match }}
@@ -236,6 +247,7 @@ jobs:
             echo "- request_id: \`$REQUEST_ID\`"
             echo "- repository: \`$TARGET_REPO\`"
             echo "- ref: \`$TARGET_REF\`"
+            echo "- commit: \`$TARGET_SHA\`"
             echo "- path: \`$TARGET_PATH\`"
             echo "- profile: \`${PROFILE_ID:-base}\`"
             echo "- profile_match: \`${PROFILE_MATCH:-default}\`"
@@ -329,11 +341,19 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           repository: ${{ needs.audit.outputs.target_repo }}
-          ref: ${{ needs.audit.outputs.target_ref }}
+          ref: ${{ needs.audit.outputs.target_sha }}
           path: target-repo
           fetch-depth: 1
           persist-credentials: false
           token: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
+
+      - name: Verify immutable target commit
+        shell: bash
+        env:
+          EXPECTED_TARGET_SHA: ${{ needs.audit.outputs.target_sha }}
+        run: |
+          actual="$(git -C target-repo rev-parse HEAD)"
+          [[ "$actual" == "$EXPECTED_TARGET_SHA" ]] || { echo "Target commit changed between audit jobs" >&2; exit 2; }
 
       - name: Re-resolve profile before specialized execution
         id: profile
@@ -380,6 +400,7 @@ jobs:
             echo "profile=${{ matrix.profile_id }}"
             echo "profile_fingerprint=${{ needs.audit.outputs.profile_fingerprint }}"
             echo "capabilities=${{ needs.audit.outputs.capabilities }}"
+            echo "target_commit=${{ needs.audit.outputs.target_sha }}"
             php -r 'echo "php=" . PHP_VERSION . PHP_EOL;'
             wp --version
             node --version 2>/dev/null || true
@@ -392,6 +413,7 @@ jobs:
           PLUGIN_DIR: ${{ needs.audit.outputs.plugin_dir }}
           TARGET_REPO: ${{ needs.audit.outputs.target_repo }}
           TARGET_REF: ${{ needs.audit.outputs.target_ref }}
+          TARGET_SHA: ${{ needs.audit.outputs.target_sha }}
           TARGET_PATH: ${{ needs.audit.outputs.target_path }}
         run: bash "${{ matrix.runtime_script }}"
 
@@ -405,6 +427,7 @@ jobs:
             echo "- profile: \`${{ matrix.profile_id }}\`"
             echo "- matched_by: \`${{ needs.audit.outputs.profile_match }}\`"
             echo "- fingerprint: \`${{ needs.audit.outputs.profile_fingerprint }}\`"
+            echo "- target_commit: \`${{ needs.audit.outputs.target_sha }}\`"
             echo "- capabilities: \`${{ needs.audit.outputs.capabilities }}\`"
             echo
             echo "This job runs only because a validated plugin profile matched. An unmatched plugin never starts these services or probes."
