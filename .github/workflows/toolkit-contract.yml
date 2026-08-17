@@ -56,7 +56,12 @@ jobs:
           assert 'project-dependency-not-installed' in static
           assert 'profile-disabled' in static
           assert 'composer install' not in static, 'static audit must not install arbitrary target Composer dependencies'
-          print('profile-aware PHPUnit policy: OK')
+          workflow=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
+          assert 'target_sha:' in workflow, 'full audit must expose the resolved immutable target SHA'
+          assert 'needs.audit.outputs.target_sha' in workflow, 'specialized runtime must use the resolved target SHA'
+          assert 'Capture immutable target commit' in workflow and 'Verify immutable target commit' in workflow
+          assert 'commit=$TARGET_SHA' in static, 'static evidence inventory must bind to the resolved target commit'
+          print('profile-aware PHPUnit and target provenance policy: OK')
           PY
       - name: Validate local Semgrep rules with pinned CE CLI
         shell: bash

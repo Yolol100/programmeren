@@ -4,6 +4,8 @@ set -uo pipefail
 : "${PLUGIN_DIR:?PLUGIN_DIR is required}"
 : "${TARGET_REPO:?TARGET_REPO is required}"
 : "${TARGET_REF:?TARGET_REF is required}"
+: "${TARGET_SHA:?TARGET_SHA is required}"
+[[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "TARGET_SHA must be a full lowercase commit SHA" >&2; exit 2; }
 
 ROOT="$(realpath "$PLUGIN_DIR")"
 RESULTS="${GITHUB_WORKSPACE:-$PWD}/audit-results"
@@ -48,6 +50,7 @@ plugin_slug="$(basename "$ROOT")"
 cat > "$RESULTS/inventory.txt" <<META
 repository=$TARGET_REPO
 ref=$TARGET_REF
+commit=$TARGET_SHA
 plugin_dir=$ROOT
 plugin_slug=$plugin_slug
 main_plugin_file=$main_plugin
