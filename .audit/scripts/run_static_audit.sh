@@ -8,9 +8,29 @@ set -uo pipefail
 ROOT="$(realpath "$PLUGIN_DIR")"
 RESULTS="${GITHUB_WORKSPACE:-$PWD}/audit-results"
 TOOLS="${GITHUB_WORKSPACE:-$PWD}/.audit/tools/vendor/bin"
+PROFILE_RESOLUTION="$RESULTS/profile-resolution.json"
 mkdir -p "$RESULTS"
 
 [[ -d "$ROOT" ]] || { echo "Plugin directory not found: $ROOT" >&2; exit 2; }
+[[ -s "$PROFILE_RESOLUTION" ]] || { echo "Profile resolution evidence missing: $PROFILE_RESOLUTION" >&2; exit 2; }
+python3 - "$PROFILE_RESOLUTION" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError) as exc:
+    print(f"Invalid profile resolution evidence: {exc}", file=sys.stderr)
+    raise SystemExit(2)
+if not isinstance(data, dict) or not isinstance(data.get("capabilities"), list):
+    print("Invalid profile resolution evidence: capabilities must be a list", file=sys.stderr)
+    raise SystemExit(2)
+if not data.get("profile_id") or not data.get("profile_fingerprint", data.get("fingerprint_sha256")):
+    print("Invalid profile resolution evidence: profile identity/fingerprint missing", file=sys.stderr)
+    raise SystemExit(2)
+PY
 
 main_plugin=""
 while IFS= read -r file; do
@@ -57,23 +77,13 @@ run_check() {
 
 has_profile_capability() {
   local capability="$1"
-  local resolution="$RESULTS/profile-resolution.json"
-  [[ -f "$resolution" ]] || return 1
-  python3 - "$resolution" "$capability" <<'PY'
+  python3 - "$PROFILE_RESOLUTION" "$capability" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-path = Path(sys.argv[1])
-capability = sys.argv[2]
-try:
-    data = json.loads(path.read_text(encoding="utf-8"))
-except (OSError, json.JSONDecodeError):
-    raise SystemExit(2)
-capabilities = data.get("capabilities")
-if not isinstance(capabilities, list):
-    raise SystemExit(2)
-raise SystemExit(0 if capability in capabilities else 1)
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+raise SystemExit(0 if sys.argv[2] in data["capabilities"] else 1)
 PY
 }
 
