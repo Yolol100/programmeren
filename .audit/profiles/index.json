@@ -2,26 +2,7 @@
   "schema_version": "1.0",
   "default_profile": "base",
   "profiles": {
-    "base": "base.json",
-    "cache": "categories/cache.json",
-    "ultracache-pro": "plugins/ultracache-pro.json"
+    "base": "base.json"
   },
-  "bindings": [
-    {
-      "profile": "ultracache-pro",
-      "repositories": [
-        "Yolol100/Ultracache-pro"
-      ],
-      "plugin_identity": {
-        "main_file": "ultracache-pro.php",
-        "plugin_name": "UltraCache Pro",
-        "text_domain": "ultracache-pro",
-        "required_files": [
-          "advanced-cache.php",
-          "dropins",
-          "includes"
-        ]
-      }
-    }
-  ]
+  "bindings": []
 }
