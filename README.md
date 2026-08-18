@@ -1,100 +1,52 @@
 # Programmeren - WordPress Plugin Audit Harness
 
-Centrale, op aanvraag gestarte auditomgeving voor WordPress-plugins.
+Centrale auditomgeving voor WordPress-plugins. De repository levert gecontroleerd bewijs; `wordpressqualityarchitect` blijft eigenaar van de inhoudelijke beoordeling.
 
-## Doel
+## Kern
 
-De harness voert voor iedere plugin een generieke WordPress-audit uit en activeert daarnaast alleen de gespecialiseerde tooling die hoort bij een gevalideerd pluginprofiel.
-
-De generieke `base`-audit bevat waar toepasbaar:
+De generieke `base`-audit voert waar toepasbaar uit:
 
 - PHP syntaxcontrole;
-- WordPress Coding Standards (WPCS/PHPCS);
-- PHPCompatibilityWP;
-- PHPStan met WordPress-extensie;
-- Composer validate/audit;
-- npm audit wanneer een lockfile aanwezig is;
+- WordPress Coding Standards;
+- PHPCompatibilityWP en PHPStan voor WordPress;
+- Composer- en npm-audits wanneer lockfiles aanwezig zijn;
+- Gitleaks, Semgrep CE en Trivy;
+- actionlint en zizmor voor GitHub Actions;
 - WordPress Plugin Check;
-- Gitleaks secret scan;
-- Trivy vulnerability/misconfiguration scan;
-- actionlint + zizmor wanneer het doelproject GitHub Actions bevat;
-- gecontroleerde generieke WordPress-runtime via `wp-env`;
-- source-snapshot ZIP + SHA-256;
-- auditlogs en rapporten als GitHub Actions artifact.
+- een gecontroleerde WordPress-runtime via `wp-env` wanneer runtime is aangezet;
+- immutable target-provenance, logs en artifacts.
 
-De centrale audittooling gebruikt exact gepinde versies. De door Composer opgeloste audit-dependencygraph moet bovendien exact de vastgelegde SHA-256 matchen; stille dependencydrift blokkeert de run.
+De centrale tooling is gepind en werkt zonder apart account, API-key of MCP-server.
 
-## Plugin-aware profielen
+## Profielrouting
 
-`.audit/profiles/index.json` is de uitvoerbare registry voor pluginherkenning. De router werkt fail-closed:
+`.audit/profiles/index.json` is de profielregistry. Op dit moment is alleen het generieke `base`-profiel actief en zijn er geen product-specifieke bindings. Daardoor valt iedere plugin veilig terug op dezelfde basiscontrole.
 
-1. de doelrepository wordt uitgecheckt;
-2. `.audit/scripts/resolve_profile.py` vergelijkt de repository en geregistreerde plugin-identiteit met de bindings;
-3. bij precies één geldige match wordt dat profiel gekozen;
-4. bij geen match wordt uitsluitend `base` gebruikt;
-5. bij conflicterende matches stopt de audit;
-6. gespecialiseerde services, PHP-extensies, WordPress-plugins, browsertooling, provider-mocks en probes worden alleen gestart vanuit het gekozen profiel.
-
-De resolver schrijft `audit-results/profile-resolution.json` met profiel, matchmethode, capabilities, runtimeconfiguratie en een SHA-256 fingerprint. Voor een gespecialiseerde runtime wordt het profiel in een tweede job opnieuw opgelost en moet dezelfde fingerprint terugkomen voordat uitvoering begint.
-
-Structuur:
+De resolver en validator blijven aanwezig zodat later alleen bij een expliciete, geteste noodzaak een gespecialiseerd profiel kan worden toegevoegd. Onbekende plugins mogen nooit automatisch gespecialiseerde services of runtimecode activeren.
 
 ```text
 .audit/profiles/
   index.json
   base.json
-  categories/
-    cache.json
-  plugins/
-    ultracache-pro.json
 ```
-
-### Huidig gespecialiseerd profiel
-
-`ultracache-pro` erft van `cache` en activeert alleen voor UltraCache Pro de extra cache/runtime-capabilities, waaronder Redis, APCu, MySQL, WooCommerce, Playwright/concurrencyprobes en de gecontroleerde Cloudflare-provider mock. Andere plugins krijgen deze onderdelen niet.
-
-Nieuwe plugins krijgen een eigen profiel wanneer ze werkelijk andere gespecialiseerde tooling nodig hebben. Voeg die tooling niet toe aan `base` alleen omdat één plugin haar nodig heeft.
-
-## Canoniek ChatGPT-contract
-
-`.audit/contract.json` is de machineleesbare projectafspraak voor de ChatGPT-route. Het legt vast wanneer deze harness wel en niet wordt gebruikt, welk requestschema geldt, welke repository- en veiligheidsgrenzen gelden, hoe profielen worden opgelost en hoe een run na de request-write wordt teruggevonden en beoordeeld.
-
-De beslisregel is:
-
-- expliciete plugin-test/audit + expliciet geïdentificeerde GitHub-repository + bruikbare GitHub-apprechten -> deze centrale harness;
-- gewone repository-inspectie of advies -> geen audittrigger;
-- losse ZIP, lokale map of geplakte code zonder GitHub-target -> lokale/meegeleverde auditroute, niet deze harness;
-- private doelrepository terwijl deze harness public is -> fail-closed blokkeren;
-- onbekende plugin -> base-audit, zonder product-specifieke tooling.
 
 ## Starten
 
 ### Handmatig in GitHub
 
-Ga naar **Actions -> Full WordPress Plugin Audit -> Run workflow** en vul minimaal `target_repo` in als `owner/repository`.
+Gebruik **Actions -> Full WordPress Plugin Audit -> Run workflow** en vul minimaal `target_repo` in als `owner/repository`.
 
 ### Via ChatGPT
 
-Als jij zegt **"test deze plugin"**, **"audit deze plugin"** of een equivalente expliciete auditopdracht geeft voor een geïdentificeerde GitHub-pluginrepo, schrijft ChatGPT via de gekoppelde GitHub-app de gewenste auditrequest naar `.audit/request.json`.
+Voor een expliciete plugin-audit schrijft ChatGPT via de gekoppelde GitHub-app een generiek verzoek naar `.audit/request.json`. Alleen een wijziging van dat bestand op `main` start deze automatische route.
 
-Alleen een wijziging van dat bestand op `main` start de automatische ChatGPT-route. Gewone pushes naar andere bestanden en pull requests starten geen runnerjob.
+Voor iedere echte audit hoort het verzoek een unieke `request_id` te krijgen. Het ingecheckte baselineverzoek wijst naar de veilige interne fixture en bevat geen klant- of productspecifieke targetinformatie.
 
-ChatGPT hoort daarbij:
-
-1. doelrepo/ref/pad eerst te verifiëren;
-2. de huidige `.audit/request.json` inclusief blob-SHA te lezen;
-3. voor iedere run een unieke `request_id` te schrijven;
-4. alleen `.audit/request.json` atomair op `main` bij te werken;
-5. de commit-SHA van die write te bewaren en readback te controleren;
-6. de `Full WordPress Plugin Audit`-run met exact die head-SHA te volgen;
-7. jobs, artifacts, profielresolutie en relevante evidence te lezen;
-8. scannerhits als kandidaat-findings aan `wordpressqualityarchitect` terug te geven, niet automatisch als bevestigde bugs.
-
-Voorbeeld request:
+Voorbeeld:
 
 ```json
 {
-  "request_id": "2026-08-17-example",
+  "request_id": "2026-08-18-example",
   "target_repo": "owner/plugin-repository",
   "target_ref": "main",
   "target_path": ".",
@@ -103,28 +55,22 @@ Voorbeeld request:
 }
 ```
 
-## Publiek versus prive
+De machineleesbare route- en veiligheidsafspraken staan in `.audit/contract.json`.
 
-Deze harness-repository is momenteel **public**. Daarom weigert de workflow fail-closed om een **private** doelrepository te auditen: logs en artifacts zouden anders private code of findings kunnen lekken.
+## Veiligheidsgrenzen
 
-Wil je later private plugins auditen, maak deze harness eerst private en voeg daarna zo nodig een read-only repositorytoken toe als Actions secret `PLUGIN_REPO_TOKEN`.
+- Het doelproject wordt read-only behandeld.
+- De workflow heeft standaard alleen `contents: read`.
+- Private targets worden geweigerd zolang deze harness publiek is.
+- Credentials horen niet in artifacts.
+- Willekeurige Composer-scripts of plugins uit het doelproject worden niet door de statische audit geïnstalleerd.
+- Runtime draait alleen wanneer `run_runtime=true` is gekozen.
+- Scannerhits zijn kandidaat-findings; pas specialistische validatie maakt er een bevestigde bevinding van.
 
 ## Bewijsgrens
 
-Een groene run bewijst alleen de werkelijk uitgevoerde statische, generieke runtime- en eventueel profiel-specifieke controlled-runtime checks. Het is geen vervanging voor echte staging, productie-observatie, volledige browser/device-matrix, live betaalproviders of menselijke toegankelijkheidstests.
+Een groene run bewijst alleen de werkelijk uitgevoerde statische en controlled-runtime checks. Het is geen bewijs voor staging, productie, een volledige browser/device-matrix of menselijke toegankelijkheidstests.
 
-## Veiligheid
+## Self-test en contract
 
-- De workflow heeft standaard alleen `contents: read`.
-- De ChatGPT-trigger vereist schrijfrecht op `.audit/request.json`; publieke bezoekers kunnen de audit daardoor niet starten.
-- Credentials worden niet in artifacts opgenomen.
-- Het doelproject wordt niet gewijzigd of teruggeschreven.
-- Projectafhankelijkheden worden voor statische/dependencychecks niet met eigen Composer-scripts/plugins uitgevoerd.
-- Runtime-uitvoering gebeurt alleen wanneer `run_runtime=true` is gekozen.
-- Specialized runtimecode komt uitsluitend uit deze harness-repository, niet uit het doelproject.
-- Onbekende plugins kunnen geen gespecialiseerde tooling activeren.
-- Scannerhits zijn kandidaat-findings; `wordpressqualityarchitect` bepaalt pas na bewijs of iets een bevestigde bug is.
-
-## Ingebouwde self-test
-
-`.audit/fixtures/programmeren-audit-fixture` is een minimale veilige fixture. `.audit/request.json` is tegelijk het gecontroleerde ChatGPT-triggerbestand en bevat per run een unieke `request_id`.
+`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting en immutable target-provenance. De generieke request op `main` kan de fixture gebruiken om de volledige triggerroute zonder productspecifieke inhoud te controleren.
