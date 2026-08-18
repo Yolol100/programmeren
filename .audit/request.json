@@ -1,8 +1,8 @@
 {
-  "request_id": "chatgpt-ultracache-retest-20260817-2147",
-  "target_repo": "Yolol100/Ultracache-pro",
-  "target_ref": "616dd8d37efb65b472fbb243672e7a0bbca27571",
-  "target_path": ".",
-  "run_runtime": true,
+  "request_id": "baseline-self-test-20260818",
+  "target_repo": "Yolol100/programmeren",
+  "target_ref": "main",
+  "target_path": ".audit/fixtures/programmeren-audit-fixture",
+  "run_runtime": false,
   "php_version": "8.3"
 }
