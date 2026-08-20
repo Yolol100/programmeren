@@ -65,6 +65,8 @@ jobs:
           assert 'format: cyclonedx' in workflow, 'SBOM generation must use CycloneDX format'
           assert 'audit-results/sbom.cdx.sha256' in workflow, 'SBOM evidence must include a SHA-256 fingerprint'
           assert 'SBOM_VALIDATE_OUTCOME' in workflow, 'quality gate must include SBOM validation outcome'
+          validator=pathlib.Path('.audit/scripts/validate_cyclonedx_sbom.py')
+          assert validator.is_file(), 'CycloneDX validator must exist'
           print('profile-aware PHPUnit, target provenance and SBOM policy: OK')
           PY
       - name: Validate local Semgrep rules with pinned CE CLI
@@ -73,3 +75,21 @@ jobs:
           python3 -m venv /tmp/semgrep-contract
           /tmp/semgrep-contract/bin/python -m pip install --disable-pip-version-check --no-input 'semgrep==1.170.0'
           SEMGREP_SEND_METRICS=off /tmp/semgrep-contract/bin/semgrep scan --validate --metrics=off --config .audit/semgrep/wordpress-security.yml
+      - name: Generate fixture CycloneDX SBOM with pinned Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .audit/fixtures/programmeren-audit-fixture
+          format: cyclonedx
+          output: /tmp/programmeren-sbom.cdx.json
+          exit-code: '0'
+          version: 'v0.74.0'
+          cache: 'false'
+      - name: Validate and fingerprint fixture CycloneDX SBOM
+        shell: bash
+        run: |
+          python3 .audit/scripts/validate_cyclonedx_sbom.py \
+            /tmp/programmeren-sbom.cdx.json \
+            --fingerprint /tmp/programmeren-sbom.cdx.sha256
+          test -s /tmp/programmeren-sbom.cdx.json
+          test -s /tmp/programmeren-sbom.cdx.sha256
