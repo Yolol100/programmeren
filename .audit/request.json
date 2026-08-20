@@ -1,0 +1,8 @@
+{
+  "request_id": "sbom-selftest-20260820",
+  "target_repo": "Yolol100/programmeren",
+  "target_ref": "main",
+  "target_path": ".audit/fixtures/programmeren-audit-fixture",
+  "run_runtime": true,
+  "php_version": "8.3"
+}
