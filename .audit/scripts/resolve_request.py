@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import os
 import re
 import sys
@@ -38,22 +37,17 @@ def clean_path(value: str) -> str:
 
 def main() -> None:
     event = os.environ.get("EVENT_NAME", "")
-    if event == "workflow_dispatch":
-        data = {
-            "request_id": os.environ.get("GITHUB_RUN_ID", "manual"),
-            "target_repo": os.environ.get("INPUT_TARGET_REPO", ""),
-            "target_ref": os.environ.get("INPUT_TARGET_REF", "main"),
-            "target_path": os.environ.get("INPUT_TARGET_PATH", "."),
-            "run_runtime": os.environ.get("INPUT_RUN_RUNTIME", "true"),
-            "php_version": os.environ.get("INPUT_PHP_VERSION", "8.3"),
-        }
-    else:
-        request_file = os.environ.get("REQUEST_FILE", ".audit/request.json")
-        try:
-            with open(request_file, "r", encoding="utf-8") as handle:
-                data = json.load(handle)
-        except (OSError, json.JSONDecodeError) as exc:
-            fail(f"cannot read {request_file}: {exc}")
+    if event != "workflow_dispatch":
+        fail("audit requests must use workflow_dispatch; default-branch request files are forbidden")
+
+    data = {
+        "request_id": os.environ.get("GITHUB_RUN_ID", "manual"),
+        "target_repo": os.environ.get("INPUT_TARGET_REPO", ""),
+        "target_ref": os.environ.get("INPUT_TARGET_REF", "main"),
+        "target_path": os.environ.get("INPUT_TARGET_PATH", "."),
+        "run_runtime": os.environ.get("INPUT_RUN_RUNTIME", "true"),
+        "php_version": os.environ.get("INPUT_PHP_VERSION", "8.3"),
+    }
 
     target_repo = str(data.get("target_repo", "")).strip()
     target_ref = str(data.get("target_ref", "main")).strip()
