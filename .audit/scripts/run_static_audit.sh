@@ -58,6 +58,14 @@ requires_php=$min_php
 php_runtime=$(php -r 'echo PHP_VERSION;')
 META
 
+python3 "${GITHUB_WORKSPACE:-$PWD}/.audit/scripts/write_dependency_provenance.py" \
+  --target-root "$ROOT" \
+  --harness-root "${GITHUB_WORKSPACE:-$PWD}" \
+  --output "$RESULTS/dependency-provenance.json" \
+  --repository "$TARGET_REPO" \
+  --ref "$TARGET_REF" \
+  --commit "$TARGET_SHA" || { echo "Dependency provenance capture failed" >&2; exit 2; }
+
 status_file="$RESULTS/status.tsv"
 printf 'check\tstatus\texit_code\n' > "$status_file"
 failures=0
