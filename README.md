@@ -36,17 +36,17 @@ De resolver en validator blijven aanwezig zodat later alleen bij een expliciete,
 
 Gebruik **Actions -> Full WordPress Plugin Audit -> Run workflow** en vul minimaal `target_repo` in als `owner/repository`.
 
-### Via ChatGPT
+### Via ChatGPT / GitHub-connector
 
-Voor een expliciete plugin-audit schrijft ChatGPT via de gekoppelde GitHub-app een generiek verzoek naar `.audit/request.json`. Alleen een wijziging van dat bestand op `main` start deze automatische route.
+Concrete auditrequest-state hoort niet op `main`. Voor een connector-gestuurde audit wordt vanaf de actuele `main` een unieke tijdelijke `runtime/**`-branch gemaakt. Alleen op die branch mag `.audit/request.json` met de concrete requestvelden worden geschreven. De workflow luistert op dat pad uitsluitend binnen `runtime/**`.
 
-Voor iedere echte audit hoort het verzoek een unieke `request_id` te krijgen. Het ingecheckte baselineverzoek wijst naar de veilige interne fixture en bevat geen klant- of productspecifieke targetinformatie.
+Na readback van request + commit kan de run aan die request worden gekoppeld. Zodra het vereiste runbewijs veilig is vastgelegd, kan de tijdelijke runtimebranch worden verwijderd. De default branch blijft daardoor generieke capability zonder klant-, target- of runstate.
 
-Voorbeeld:
+Voorbeeld van de tijdelijke requestinhoud:
 
 ```json
 {
-  "request_id": "2026-08-18-example",
+  "request_id": "run-unique-id",
   "target_repo": "owner/plugin-repository",
   "target_ref": "main",
   "target_path": ".",
@@ -62,6 +62,7 @@ De machineleesbare route- en veiligheidsafspraken staan in `.audit/contract.json
 - Het doelproject wordt read-only behandeld.
 - De workflow heeft standaard alleen `contents: read`.
 - Private targets worden geweigerd zolang deze harness publiek is.
+- Concrete auditrequest-state is verboden op `main`; file-backed requests zijn alleen toegestaan op een tijdelijke `runtime/**`-branch.
 - Credentials horen niet in artifacts.
 - Willekeurige Composer-scripts of plugins uit het doelproject worden niet door de statische audit geïnstalleerd.
 - Runtime draait alleen wanneer `run_runtime=true` is gekozen.
@@ -73,4 +74,4 @@ Een groene run bewijst alleen de werkelijk uitgevoerde statische en controlled-r
 
 ## Self-test en contract
 
-`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting en immutable target-provenance. De generieke request op `main` kan de fixture gebruiken om de volledige triggerroute zonder productspecifieke inhoud te controleren.
+`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting, immutable target-provenance en de regel dat concrete request-state niet op de default branch staat.
