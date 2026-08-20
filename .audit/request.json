@@ -1,8 +1,0 @@
-{
-  "request_id": "baseline-self-test-20260818",
-  "target_repo": "Yolol100/programmeren",
-  "target_ref": "main",
-  "target_path": ".audit/fixtures/programmeren-audit-fixture",
-  "run_runtime": false,
-  "php_version": "8.3"
-}

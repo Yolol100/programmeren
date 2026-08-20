@@ -5,6 +5,7 @@ from pathlib import Path
 
 CONTRACT = Path('.audit/contract.json')
 WORKFLOW = Path('.github/workflows/full-plugin-audit.yml')
+DEFAULT_REQUEST = Path('.audit/request.json')
 
 
 def fail(message: str) -> None:
@@ -25,10 +26,14 @@ def main() -> None:
         'workflow_name': 'Full WordPress Plugin Audit',
         'workflow_file': '.github/workflows/full-plugin-audit.yml',
         'request_file': '.audit/request.json',
+        'request_branch_pattern': 'runtime/**',
     }
     for key, value in expected.items():
         if harness.get(key) != value:
             fail(f'harness.{key} must be {value!r}')
+
+    if DEFAULT_REQUEST.exists():
+        fail('.audit/request.json must not be tracked on the default capability branch')
 
     required_fields = set((contract.get('request') or {}).get('required_fields') or [])
     expected_fields = {
@@ -56,8 +61,10 @@ def main() -> None:
         fail('public harness must block private targets')
     if security.get('target_write_policy') != 'read-only':
         fail('target repository must stay read-only')
-    if security.get('request_write_scope') != '.audit/request.json only':
-        fail('ChatGPT write scope must stay limited to .audit/request.json')
+    if security.get('request_write_scope') != 'runtime/** branch .audit/request.json only':
+        fail('file-backed request writes must stay isolated to runtime/** branches')
+    if security.get('default_branch_request_state') != 'forbidden':
+        fail('default-branch request state must be forbidden')
 
     try:
         workflow = WORKFLOW.read_text(encoding='utf-8')
@@ -67,8 +74,10 @@ def main() -> None:
     required_workflow_fragments = [
         'name: Full WordPress Plugin Audit',
         'workflow_dispatch:',
+        "- 'runtime/**'",
         "- '.audit/request.json'",
         'permissions:\n  contents: read',
+        'REF_NAME: ${{ github.ref_name }}',
         'REQUEST_FILE: .audit/request.json',
         '.audit/scripts/check_target_visibility.sh',
         '.audit/scripts/validate_profiles.py',
@@ -81,6 +90,8 @@ def main() -> None:
     for fragment in required_workflow_fragments:
         if fragment not in workflow:
             fail(f'workflow contract fragment missing: {fragment!r}')
+    if "branches:\n      - main\n    paths:\n      - '.audit/request.json'" in workflow:
+        fail('concrete request-file pushes may not target main')
 
     print('canonical audit harness contract: OK')
 

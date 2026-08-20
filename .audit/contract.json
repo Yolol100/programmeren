@@ -1,11 +1,12 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "harness": {
     "repository": "Yolol100/programmeren",
     "default_branch": "main",
     "workflow_name": "Full WordPress Plugin Audit",
     "workflow_file": ".github/workflows/full-plugin-audit.yml",
-    "request_file": ".audit/request.json"
+    "request_file": ".audit/request.json",
+    "request_branch_pattern": "runtime/**"
   },
   "intent": {
     "use_for": [
@@ -17,7 +18,7 @@
     "requires": [
       "the target is an explicitly identified GitHub repository",
       "the user explicitly requests a plugin test or audit",
-      "the GitHub app can read the target repository and write the harness request file"
+      "the caller can either dispatch the workflow or create an isolated runtime/** request branch"
     ],
     "do_not_use_for": [
       "ordinary repository inspection or advisory review",
@@ -40,7 +41,8 @@
       "run_runtime": true,
       "php_version": "8.3"
     },
-    "request_id_rule": "Generate a unique value for every requested run; never reuse the previous request_id."
+    "request_id_rule": "Generate a unique value for every requested run; never reuse the previous request_id.",
+    "persistence_rule": "Concrete request state is forbidden on the default branch. File-backed requests may exist only on an isolated runtime/** branch and should be removed after the run evidence is secured."
   },
   "profile_routing": {
     "registry": ".audit/profiles/index.json",
@@ -53,11 +55,12 @@
     "evidence_file": "audit-results/profile-resolution.json"
   },
   "execution": [
-    "Resolve and verify the target repository, ref and plugin path before writing.",
-    "Read the current .audit/request.json and retain its blob SHA for an atomic update.",
-    "Write the complete request to .audit/request.json on main using the current blob SHA.",
-    "Read back the request and commit SHA; only that request-file change is the automatic ChatGPT trigger.",
-    "Locate the Full WordPress Plugin Audit run whose head SHA equals the request commit SHA.",
+    "Resolve and verify the target repository, ref and plugin path before execution.",
+    "For workflow_dispatch, pass request fields directly as workflow inputs; do not persist a request file on main.",
+    "For a connector-driven file request, create a unique runtime/** branch from current main and write the complete request only to .audit/request.json on that branch.",
+    "Read back the runtime-branch request and commit SHA before interpreting the triggered run.",
+    "Never write concrete request state to main or another persistent capability branch.",
+    "Locate the Full WordPress Plugin Audit run associated with the dispatch or runtime-branch request.",
     "Run the generic base audit for every target.",
     "Resolve the plugin profile after target checkout and record the profile fingerprint and capabilities.",
     "Run specialized services and probes only when a validated specialized profile matched; unknown plugins remain base-only.",
@@ -70,7 +73,8 @@
     "harness_visibility": "public",
     "private_target_policy": "blocked",
     "target_write_policy": "read-only",
-    "request_write_scope": ".audit/request.json only",
+    "request_write_scope": "runtime/** branch .audit/request.json only",
+    "default_branch_request_state": "forbidden",
     "credentials_in_artifacts": false,
     "profile_code_source": "harness repository only",
     "unmatched_specialized_runtime": "blocked"

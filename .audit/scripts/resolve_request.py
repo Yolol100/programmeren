@@ -47,13 +47,18 @@ def main() -> None:
             "run_runtime": os.environ.get("INPUT_RUN_RUNTIME", "true"),
             "php_version": os.environ.get("INPUT_PHP_VERSION", "8.3"),
         }
-    else:
+    elif event == "push":
+        ref_name = os.environ.get("REF_NAME", "")
+        if not ref_name.startswith("runtime/"):
+            fail("file-backed audit requests are allowed only on runtime/** branches")
         request_file = os.environ.get("REQUEST_FILE", ".audit/request.json")
         try:
             with open(request_file, "r", encoding="utf-8") as handle:
                 data = json.load(handle)
         except (OSError, json.JSONDecodeError) as exc:
             fail(f"cannot read {request_file}: {exc}")
+    else:
+        fail(f"unsupported event: {event or 'unknown'}")
 
     target_repo = str(data.get("target_repo", "")).strip()
     target_ref = str(data.get("target_ref", "main")).strip()
