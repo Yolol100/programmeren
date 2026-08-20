@@ -205,6 +205,44 @@ jobs:
           version: 'v0.74.0'
           cache: 'false'
 
+      - name: Trivy CycloneDX SBOM
+        id: sbom
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ steps.request.outputs.plugin_dir }}
+          format: cyclonedx
+          output: audit-results/sbom.cdx.json
+          exit-code: '0'
+          version: 'v0.74.0'
+          cache: 'false'
+          skip-setup-trivy: true
+
+      - name: Validate and fingerprint CycloneDX SBOM
+        id: sbom_validate
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('audit-results/sbom.cdx.json')
+          if not path.is_file() or path.stat().st_size == 0:
+              raise SystemExit('CycloneDX SBOM is missing or empty')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          if data.get('bomFormat') != 'CycloneDX':
+              raise SystemExit('SBOM bomFormat must be CycloneDX')
+          if not isinstance(data.get('specVersion'), str) or not data['specVersion']:
+              raise SystemExit('SBOM specVersion is missing')
+          components = data.get('components')
+          if components is not None and not isinstance(components, list):
+              raise SystemExit('SBOM components must be a list when present')
+          print(f"CycloneDX SBOM valid: spec={data['specVersion']}, components={len(components or [])}")
+          PY
+          sha256sum audit-results/sbom.cdx.json > audit-results/sbom.cdx.sha256
+
       - name: WordPress Plugin Check controlled runtime
         id: plugincheck
         if: ${{ steps.request.outputs.run_runtime == 'true' }}
@@ -237,6 +275,8 @@ jobs:
           TOOLS_OUTCOME: ${{ steps.tools.outcome }}
           STATIC_OUTCOME: ${{ steps.static.outcome }}
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
+          SBOM_OUTCOME: ${{ steps.sbom.outcome }}
+          SBOM_VALIDATE_OUTCOME: ${{ steps.sbom_validate.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
@@ -257,11 +297,14 @@ jobs:
             echo "- tooling: \`$TOOLS_OUTCOME\`"
             echo "- static: \`$STATIC_OUTCOME\`"
             echo "- trivy: \`$TRIVY_OUTCOME\`"
+            echo "- cyclonedx_sbom: \`${SBOM_OUTCOME:-missing}\`"
+            echo "- cyclonedx_sbom_validation: \`${SBOM_VALIDATE_OUTCOME:-missing}\`"
             echo "- plugin_check: \`${PLUGIN_CHECK_OUTCOME:-skipped}\`"
             echo "- generic_wp_env_runtime: \`${RUNTIME_OUTCOME:-skipped}\`"
             echo
             echo "Unknown or unmatched plugins use the base profile only. Product-specific services, WordPress plugins and probes are enabled only by a validated matched profile."
             echo "A scanner failure is a candidate finding, not automatically a confirmed bug."
+            echo "The CycloneDX SBOM is dependency inventory/provenance evidence, not a standalone safety or license-compliance claim."
           } | tee audit-results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload generic audit evidence
@@ -280,6 +323,8 @@ jobs:
           TOOLS_OUTCOME: ${{ steps.tools.outcome }}
           STATIC_OUTCOME: ${{ steps.static.outcome }}
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
+          SBOM_OUTCOME: ${{ steps.sbom.outcome }}
+          SBOM_VALIDATE_OUTCOME: ${{ steps.sbom_validate.outcome }}
           PLUGIN_CHECK_OUTCOME: ${{ steps.plugincheck.outcome }}
           RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
           RUN_RUNTIME: ${{ steps.request.outputs.run_runtime }}
@@ -288,6 +333,8 @@ jobs:
           [[ "$TOOLS_OUTCOME" == "success" ]] || failures=$((failures + 1))
           [[ "$STATIC_OUTCOME" == "success" ]] || failures=$((failures + 1))
           [[ "$TRIVY_OUTCOME" == "success" ]] || failures=$((failures + 1))
+          [[ "$SBOM_OUTCOME" == "success" ]] || failures=$((failures + 1))
+          [[ "$SBOM_VALIDATE_OUTCOME" == "success" ]] || failures=$((failures + 1))
           if [[ "$RUN_RUNTIME" == "true" ]]; then
             [[ "$PLUGIN_CHECK_OUTCOME" == "success" ]] || failures=$((failures + 1))
             [[ "$RUNTIME_OUTCOME" == "success" ]] || failures=$((failures + 1))

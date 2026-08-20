@@ -61,7 +61,11 @@ jobs:
           assert 'needs.audit.outputs.target_sha' in workflow, 'specialized runtime must use the resolved target SHA'
           assert 'Capture immutable target commit' in workflow and 'Verify immutable target commit' in workflow
           assert 'commit=$TARGET_SHA' in static, 'static evidence inventory must bind to the resolved target commit'
-          print('profile-aware PHPUnit and target provenance policy: OK')
+          assert 'Trivy CycloneDX SBOM' in workflow, 'full audit must generate CycloneDX SBOM evidence'
+          assert 'format: cyclonedx' in workflow, 'SBOM generation must use CycloneDX format'
+          assert 'audit-results/sbom.cdx.sha256' in workflow, 'SBOM evidence must include a SHA-256 fingerprint'
+          assert 'SBOM_VALIDATE_OUTCOME' in workflow, 'quality gate must include SBOM validation outcome'
+          print('profile-aware PHPUnit, target provenance and SBOM policy: OK')
           PY
       - name: Validate local Semgrep rules with pinned CE CLI
         shell: bash

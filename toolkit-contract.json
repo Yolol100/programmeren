@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "owner_skill": "wordpressqualityarchitect",
   "project_id": "project-plugin",
   "repository": "Yolol100/programmeren",
@@ -25,6 +25,7 @@
     {"id":"gitleaks","version":"8.28.0","scope":"base","trigger_when":"every static audit","outputs":["audit-results/gitleaks.json"]},
     {"id":"semgrep-ce","version":"1.170.0","scope":"base","trigger_when":"every static audit","outputs":["audit-results/semgrep.json"]},
     {"id":"trivy","version":"0.74.0","scope":"base","trigger_when":"every full audit","outputs":["audit-results/trivy.json"]},
+    {"id":"trivy-sbom","version":"0.74.0","scope":"base","trigger_when":"every full audit","outputs":["audit-results/sbom.cdx.json","audit-results/sbom.cdx.sha256"]},
     {"id":"actionlint","version":"1.7.12","scope":"base","trigger_when":"target contains GitHub Actions","outputs":["audit-results/actionlint.log"]},
     {"id":"zizmor","version":"1.28.0","scope":"base","trigger_when":"target contains GitHub Actions","outputs":["audit-results/zizmor.log"]},
     {"id":"wordpress-plugin-check","version":"action-pinned","scope":"base","trigger_when":"run_runtime is true","outputs":["workflow evidence"]},
@@ -41,7 +42,8 @@
     {"tool":"npm-audit","path":".audit/scripts/run_static_audit.sh","contains":"npm audit"},
     {"tool":"gitleaks","path":".audit/scripts/run_static_audit.sh","contains":"run_check gitleaks"},
     {"tool":"semgrep-ce","path":".audit/scripts/run_static_audit.sh","contains":"SEMGREP_SEND_METRICS=off"},
-    {"tool":"trivy","path":".github/workflows/full-plugin-audit.yml","contains":"aquasecurity/trivy-action"},
+    {"tool":"trivy","path":".github/workflows/full-plugin-audit.yml","contains":"Trivy vulnerability and misconfiguration scan"},
+    {"tool":"trivy-sbom","path":".github/workflows/full-plugin-audit.yml","contains":"Trivy CycloneDX SBOM"},
     {"tool":"actionlint","path":".audit/scripts/run_static_audit.sh","contains":"run_check actionlint"},
     {"tool":"zizmor","path":".audit/scripts/run_static_audit.sh","contains":"run_check zizmor"},
     {"tool":"wordpress-plugin-check","path":".github/workflows/full-plugin-audit.yml","contains":"WordPress/plugin-check-action"},
@@ -51,6 +53,7 @@
   "boundaries": [
     "Semgrep uses only local repository-owned rules with metrics disabled; no login, token, cloud registry config or MCP server is required or started.",
     "Semgrep Community Edition is a candidate-finding layer; findings require specialist validation and do not automatically prove a vulnerability.",
+    "CycloneDX SBOM generation is dependency inventory and provenance evidence; it does not by itself prove dependency safety, license compliance or exploitability.",
     "Target project scripts are not executed generically; runtime probes remain controlled.",
     "Project-owned PHPUnit runs only when audit.phpunit-project is active, phpunit/phpunit is declared by the target and vendor/bin/phpunit is already installed; the audit harness does not install arbitrary target Composer dependencies or select a PHPUnit version for the target.",
     "Profile resolution evidence is required and validated before static audit capability routing; missing or invalid profile evidence fails closed.",

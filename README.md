@@ -11,6 +11,7 @@ De generieke `base`-audit voert waar toepasbaar uit:
 - PHPCompatibilityWP en PHPStan voor WordPress;
 - Composer- en npm-audits wanneer lockfiles aanwezig zijn;
 - Gitleaks, Semgrep CE en Trivy;
+- een gevalideerde CycloneDX-SBOM met SHA-256-fingerprint als dependency/provenance-evidence;
 - actionlint en zizmor voor GitHub Actions;
 - WordPress Plugin Check;
 - een gecontroleerde WordPress-runtime via `wp-env` wanneer runtime is aangezet;
@@ -67,6 +68,7 @@ De machineleesbare route- en veiligheidsafspraken staan in `.audit/contract.json
 - Willekeurige Composer-scripts of plugins uit het doelproject worden niet door de statische audit geïnstalleerd.
 - Runtime draait alleen wanneer `run_runtime=true` is gekozen.
 - Scannerhits zijn kandidaat-findings; pas specialistische validatie maakt er een bevestigde bevinding van.
+- De CycloneDX-SBOM is inventaris/provenance-evidence en bewijst op zichzelf geen dependencyveiligheid, licentiecompliance of exploitability.
 
 ## Bewijsgrens
 
@@ -74,4 +76,4 @@ Een groene run bewijst alleen de werkelijk uitgevoerde statische en controlled-r
 
 ## Self-test en contract
 
-`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting, immutable target-provenance en de regel dat concrete request-state niet op de default branch staat.
+`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting, immutable target-provenance, verplichte SBOM-evidence en de regel dat concrete request-state niet op de default branch staat.
