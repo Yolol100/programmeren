@@ -6,9 +6,12 @@ on:
     branches: [main]
     paths:
       - 'toolkit-contract.json'
+      - '.audit/contract.json'
+      - '.audit/fixtures/**'
       - '.audit/profiles/**'
       - '.audit/semgrep/**'
       - '.audit/scripts/**'
+      - '.audit/tools/**'
       - '.github/workflows/**'
       - '.github/dependabot.yml'
       - '.github/*TEMPLATE.md'
