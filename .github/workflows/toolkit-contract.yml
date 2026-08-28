@@ -10,6 +10,10 @@ on:
       - '.audit/semgrep/**'
       - '.audit/scripts/**'
       - '.github/workflows/**'
+      - '.github/dependabot.yml'
+      - '.github/*TEMPLATE.md'
+      - 'script/**'
+      - 'README.md'
 
 permissions:
   contents: read
@@ -40,6 +44,37 @@ jobs:
           assert 'semgrep login' not in static.lower()
           assert '--metrics=off' in static
           print('toolkit-contract: OK')
+          PY
+      - name: Validate repository maintenance conventions
+        shell: bash
+        run: |
+          bash -n script/validate
+          bash -n script/audit
+          bash -n script/package
+          python3 - <<'PY'
+          from pathlib import Path
+
+          dependabot = Path('.github/dependabot.yml').read_text(encoding='utf-8')
+          assert 'package-ecosystem: "github-actions"' in dependabot
+          assert 'interval: "monthly"' in dependabot
+
+          dependency_review = Path('.github/workflows/dependency-review.yml').read_text(encoding='utf-8')
+          assert 'permissions:\n  contents: read' in dependency_review
+          assert 'actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294' in dependency_review
+          assert 'fail-on-severity: high' in dependency_review
+
+          pr_template = Path('.github/PULL_REQUEST_TEMPLATE.md').read_text(encoding='utf-8')
+          for heading in ('## Scope', '## Evidence', '## Tests', '## Risk and rollback', '## Open points'):
+              assert heading in pr_template, f'missing PR template heading: {heading}'
+
+          issue_template = Path('.github/ISSUE_TEMPLATE.md').read_text(encoding='utf-8')
+          for heading in ('## Problem', '## Reproduction or evidence', '## Expected result', '## Verification'):
+              assert heading in issue_template, f'missing issue template heading: {heading}'
+
+          package = Path('script/package').read_text(encoding='utf-8')
+          assert 'git archive' in package
+          assert 'sha256sum' in package
+          print('repository maintenance conventions: OK')
           PY
       - name: Validate audit profiles and profile routing
         shell: bash
