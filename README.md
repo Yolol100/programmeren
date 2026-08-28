@@ -24,7 +24,6 @@ De centrale tooling is gepind en werkt zonder apart account, API-key of MCP-serv
 De repository gebruikt een kleine set vaste conventies:
 
 - Dependabot controleert maandelijks alleen GitHub Actions. De gepinde Composer-audittooling blijft bewust buiten automatische updates omdat wijzigingen samen met de vaste dependency-hash en regressietests moeten worden gevalideerd.
-- `Dependency Review` controleert pull requests op nieuw geintroduceerde dependencykwetsbaarheden en blokkeert vanaf `high` severity.
 - Pull requests en issues vragen expliciet om scope, bewijs, verificatie en waar relevant rollbackinformatie.
 - Eenvoudige entrypoints verbergen interne paden zonder een tweede auditimplementatie te maken.
 
@@ -39,6 +38,8 @@ bash script/package
 `script/audit` is een dunne wrapper rond de bestaande statische audit en verwacht dezelfde gevalideerde environment, tooling en profile-resolution evidence als de workflow. Voor normale audits blijft **Full WordPress Plugin Audit** de voorkeursroute.
 
 `script/package` maakt een Git-archive van de huidige commit en schrijft daarnaast een SHA-256-checksum. Standaard komt dit in `dist/`; zet `OUTPUT_DIR` wanneer een andere tijdelijke uitvoermap nodig is.
+
+GitHub Dependency Review is onderzocht maar niet geactiveerd zolang **Dependency Graph** voor deze repository uitstaat. De workflow wordt bewust niet als `continue-on-error` toegevoegd, omdat dat een schijn-gate zou opleveren. Zodra Dependency Graph is ingeschakeld, kan de gepinde Dependency Review-workflow veilig als aparte PR-gate worden toegevoegd.
 
 ## Profielrouting
 
