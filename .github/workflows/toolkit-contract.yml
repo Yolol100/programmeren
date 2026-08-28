@@ -51,6 +51,7 @@ jobs:
           bash -n script/validate
           bash -n script/audit
           bash -n script/package
+          bash script/validate
           python3 - <<'PY'
           from pathlib import Path
 
@@ -71,6 +72,28 @@ jobs:
           assert 'sha256sum' in package
           print('repository maintenance conventions: OK')
           PY
+      - name: Validate runtime request isolation contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .audit/request.json
+          trap 'rm -f .audit/request.json /tmp/runtime-contract-main.log' EXIT
+          cat > .audit/request.json <<'JSON'
+          {
+            "request_id": "contract-fixture",
+            "target_repo": "Yolol100/programmeren",
+            "target_ref": "main",
+            "target_path": ".audit/fixtures/programmeren-audit-fixture",
+            "run_runtime": false,
+            "php_version": "8.3"
+          }
+          JSON
+          AUDIT_CONTRACT_REF_NAME=runtime/contract-fixture python3 .audit/scripts/validate_contract.py
+          if AUDIT_CONTRACT_REF_NAME=main python3 .audit/scripts/validate_contract.py > /tmp/runtime-contract-main.log 2>&1; then
+            echo '.audit/request.json unexpectedly passed on main' >&2
+            exit 1
+          fi
+          grep -F 'allowed only on runtime/** branches' /tmp/runtime-contract-main.log
       - name: Validate audit profiles and profile routing
         shell: bash
         run: |
