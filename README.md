@@ -19,6 +19,28 @@ De generieke `base`-audit voert waar toepasbaar uit:
 
 De centrale tooling is gepind en werkt zonder apart account, API-key of MCP-server.
 
+## Onderhoud en bijdragen
+
+De repository gebruikt een kleine set vaste conventies:
+
+- Dependabot controleert maandelijks alleen GitHub Actions. De gepinde Composer-audittooling blijft bewust buiten automatische updates omdat wijzigingen samen met de vaste dependency-hash en regressietests moeten worden gevalideerd.
+- Pull requests en issues vragen expliciet om scope, bewijs, verificatie en waar relevant rollbackinformatie.
+- Eenvoudige entrypoints verbergen interne paden zonder een tweede auditimplementatie te maken.
+
+Gebruik lokaal of in een geschikte repositoryruntime:
+
+```bash
+bash script/validate
+bash script/audit
+bash script/package
+```
+
+`script/audit` is een dunne wrapper rond de bestaande statische audit en verwacht dezelfde gevalideerde environment, tooling en profile-resolution evidence als de workflow. Voor normale audits blijft **Full WordPress Plugin Audit** de voorkeursroute.
+
+`script/package` maakt een Git-archive van de huidige commit en schrijft daarnaast een SHA-256-checksum. Standaard komt dit in `dist/`; zet `OUTPUT_DIR` wanneer een andere tijdelijke uitvoermap nodig is.
+
+GitHub Dependency Review is onderzocht maar niet geactiveerd zolang **Dependency Graph** voor deze repository uitstaat. De workflow wordt bewust niet als `continue-on-error` toegevoegd, omdat dat een schijn-gate zou opleveren. Zodra Dependency Graph is ingeschakeld, kan de gepinde Dependency Review-workflow veilig als aparte PR-gate worden toegevoegd.
+
 ## Profielrouting
 
 `.audit/profiles/index.json` is de profielregistry. Op dit moment is alleen het generieke `base`-profiel actief en zijn er geen product-specifieke bindings. Daardoor valt iedere plugin veilig terug op dezelfde basiscontrole.
@@ -76,4 +98,4 @@ Een groene run bewijst alleen de werkelijk uitgevoerde statische en controlled-r
 
 ## Self-test en contract
 
-`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting, immutable target-provenance, verplichte SBOM-evidence en de regel dat concrete request-state niet op de default branch staat.
+`.audit/fixtures/programmeren-audit-fixture` is de minimale veilige fixture. `Toolkit Contract` valideert de audittooling, profielrouting, immutable target-provenance, verplichte SBOM-evidence, onderhoudsconventies en de regel dat concrete request-state niet op de default branch staat.

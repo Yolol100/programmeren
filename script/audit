@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+: "${PLUGIN_DIR:?PLUGIN_DIR is required}"
+: "${TARGET_REPO:?TARGET_REPO is required}"
+: "${TARGET_REF:?TARGET_REF is required}"
+: "${TARGET_SHA:?TARGET_SHA is required}"
+
+if [[ ! -s audit-results/profile-resolution.json ]]; then
+  echo "audit-results/profile-resolution.json is required; resolve the profile first." >&2
+  exit 2
+fi
+
+if [[ ! -x .audit/tools/vendor/bin/phpcs ]]; then
+  echo "Pinned audit tooling is not installed. Use the Full WordPress Plugin Audit workflow or install the registered tooling first." >&2
+  exit 2
+fi
+
+.audit/scripts/run_static_audit.sh
