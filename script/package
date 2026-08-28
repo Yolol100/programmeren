@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+OUTPUT_DIR="${OUTPUT_DIR:-dist}"
+mkdir -p "$OUTPUT_DIR"
+
+version="$(git rev-parse --short=12 HEAD)"
+archive="$OUTPUT_DIR/programmeren-audit-harness-${version}.tgz"
+checksum="$archive.sha256"
+
+git archive --format=tar.gz --prefix="programmeren-audit-harness/" -o "$archive" HEAD
+sha256sum "$archive" > "$checksum"
+
+echo "$archive"
+echo "$checksum"
