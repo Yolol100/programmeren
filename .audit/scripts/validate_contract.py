@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,6 +13,23 @@ DEFAULT_REQUEST = Path('.audit/request.json')
 def fail(message: str) -> None:
     print(f'contract error: {message}', file=sys.stderr)
     raise SystemExit(2)
+
+
+def current_ref_name() -> str:
+    for key in ('AUDIT_CONTRACT_REF_NAME', 'GITHUB_REF_NAME'):
+        value = os.environ.get(key, '').strip()
+        if value:
+            return value
+    try:
+        result = subprocess.run(
+            ['git', 'branch', '--show-current'],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return ''
+    return result.stdout.strip() if result.returncode == 0 else ''
 
 
 def main() -> None:
@@ -32,8 +51,12 @@ def main() -> None:
         if harness.get(key) != value:
             fail(f'harness.{key} must be {value!r}')
 
-    if DEFAULT_REQUEST.exists():
-        fail('.audit/request.json must not be tracked on the default capability branch')
+    ref_name = current_ref_name()
+    if DEFAULT_REQUEST.exists() and not ref_name.startswith('runtime/'):
+        fail(
+            '.audit/request.json is allowed only on runtime/** branches; '
+            f'current ref is {ref_name or "unknown"!r}'
+        )
 
     required_fields = set((contract.get('request') or {}).get('required_fields') or [])
     expected_fields = {
