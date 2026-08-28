@@ -1,0 +1,8 @@
+{
+  "request_id": "full-audit-selftest-20260828-1120",
+  "target_repo": "Yolol100/programmeren",
+  "target_ref": "main",
+  "target_path": ".audit/fixtures/programmeren-audit-fixture",
+  "run_runtime": true,
+  "php_version": "8.3"
+}
