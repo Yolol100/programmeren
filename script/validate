@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+python3 .audit/scripts/validate_contract.py
+python3 .audit/scripts/validate_profiles.py
+python3 .audit/scripts/test_profile_routing.py
+
+bash -n .audit/scripts/check_target_visibility.sh
+bash -n .audit/scripts/install_cli_tools.sh
+bash -n .audit/scripts/run_static_audit.sh
+bash -n .audit/scripts/runtime_probe.sh
+bash -n script/audit
+bash -n script/package
+
+echo "repository validation: OK"
