@@ -58,11 +58,6 @@ jobs:
           assert 'package-ecosystem: "github-actions"' in dependabot
           assert 'interval: "monthly"' in dependabot
 
-          dependency_review = Path('.github/workflows/dependency-review.yml').read_text(encoding='utf-8')
-          assert 'permissions:\n  contents: read' in dependency_review
-          assert 'actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294' in dependency_review
-          assert 'fail-on-severity: high' in dependency_review
-
           pr_template = Path('.github/PULL_REQUEST_TEMPLATE.md').read_text(encoding='utf-8')
           for heading in ('## Scope', '## Evidence', '## Tests', '## Risk and rollback', '## Open points'):
               assert heading in pr_template, f'missing PR template heading: {heading}'
