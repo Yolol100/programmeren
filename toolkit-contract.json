@@ -30,7 +30,7 @@
     {"id":"zizmor","version":"1.28.0","scope":"base","trigger_when":"target contains GitHub Actions","outputs":["audit-results/zizmor.log"]},
     {"id":"wordpress-plugin-check","version":"action-pinned","scope":"base","trigger_when":"run_runtime is true","outputs":["workflow evidence"]},
     {"id":"wp-env-runtime-probe","version":"repo","scope":"base","trigger_when":"run_runtime is true","outputs":["audit-results runtime evidence"]},
-    {"id":"wp-playground-cli","version":"3.1.53","scope":"manual-opt-in","trigger_when":"a fast local or CI WordPress smoke without Docker/MySQL parity is explicitly requested","outputs":["ephemeral local WordPress runtime"]},
+    {"id":"wp-playground-cli","version":"3.1.53","scope":"manual-opt-in","trigger_when":"a fast local or CI WordPress smoke without Docker/MySQL parity is explicitly requested; a reviewed local Blueprint JSON/ZIP/directory may be supplied for deterministic initial state","outputs":["ephemeral local WordPress runtime"]},
     {"id":"profile-runtime","version":"repo","scope":"matched-profile-only","trigger_when":"run_runtime is true and specialized_runtime is true","outputs":["audit-results/profile-resolution.json","profile-specific runtime evidence"]}
   ],
   "usage_assertions": [
@@ -58,6 +58,7 @@
     "CycloneDX SBOM generation is dependency inventory and provenance evidence; it does not by itself prove dependency safety, license compliance or exploitability.",
     "Target project scripts are not executed generically; runtime probes remain controlled.",
     "WordPress Playground is an opt-in fast sandbox and does not replace wp-env where Docker/MySQL or hosting parity is required.",
+    "The generic Playground helper accepts only an explicitly supplied local Blueprint file, ZIP or directory; remote Blueprint URLs fail closed and the helper never grants --blueprint-may-read-adjacent-files.",
     "Query Monitor is not installed by the generic base audit; temporary diagnostic plugins remain profile-, local- or staging-bound.",
     "Project-owned PHPUnit runs only when audit.phpunit-project is active, phpunit/phpunit is declared by the target and vendor/bin/phpunit is already installed; the audit harness does not install arbitrary target Composer dependencies or select a PHPUnit version for the target.",
     "Profile resolution evidence is required and validated before static audit capability routing; missing or invalid profile evidence fails closed.",
