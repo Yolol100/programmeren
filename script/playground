@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PLAYGROUND_VERSION="${PLAYGROUND_VERSION:-3.1.53}"
+PROJECT_DIR="${1:-.}"
+WORDPRESS_VERSION="${WORDPRESS_VERSION:-latest}"
+PHP_VERSION="${PHP_VERSION:-8.3}"
+PORT="${PORT:-9400}"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js is required (20.18+)." >&2
+  exit 2
+fi
+
+if [[ ! -d "$PROJECT_DIR" ]]; then
+  echo "Project directory does not exist: $PROJECT_DIR" >&2
+  exit 2
+fi
+
+node_major="$(node -p 'process.versions.node.split(".")[0]')"
+node_minor="$(node -p 'process.versions.node.split(".")[1]')"
+if (( node_major < 20 || (node_major == 20 && node_minor < 18) )); then
+  echo "WordPress Playground CLI requires Node.js 20.18 or newer." >&2
+  exit 2
+fi
+
+cd "$PROJECT_DIR"
+exec npx --yes "@wp-playground/cli@${PLAYGROUND_VERSION}" server \
+  --auto-mount \
+  --wp="${WORDPRESS_VERSION}" \
+  --php="${PHP_VERSION}" \
+  --port="${PORT}"

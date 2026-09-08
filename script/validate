@@ -14,5 +14,6 @@ bash -n .audit/scripts/run_static_audit.sh
 bash -n .audit/scripts/runtime_probe.sh
 bash -n script/audit
 bash -n script/package
+bash -n script/playground
 
 echo "repository validation: OK"
