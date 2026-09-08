@@ -29,6 +29,14 @@ bash script/playground ./pad/naar/plugin
 
 Standaard gebruikt deze helper `@wp-playground/cli@3.1.53`, WordPress `latest`, PHP `8.3` en poort `9400`. Deze waarden zijn overschrijfbaar met `PLAYGROUND_VERSION`, `WORDPRESS_VERSION`, `PHP_VERSION` en `PORT`.
 
+Voor een reproduceerbare beginsituatie mag optioneel een vooraf beoordeelde lokale WordPress Playground Blueprint worden meegegeven. De helper accepteert een lokale JSON, ZIP-bundle of directory:
+
+```bash
+BLUEPRINT=./blueprint.json bash script/playground ./pad/naar/plugin
+```
+
+De generieke helper weigert bewust `http://`- en `https://`-Blueprints en geeft nooit automatisch `--blueprint-may-read-adjacent-files` mee. Daarmee blijft externe acquisitie en ruimere lokale bestandstoegang buiten de generieke auditroute. Een Blueprint is configuratie van de geïsoleerde Playground-runtime en wordt nooit projectwaarheid of een tweede auditprofiel.
+
 Deze route vervangt `wp-env` niet. Gebruik Playground voor snelle, geïsoleerde compatibiliteits- en mounts-smokes; gebruik `wp-env` wanneer Docker/MySQL-/hostingpariteit of de bestaande generieke auditruntime nodig is. De helper draait geen willekeurige target-scripts en maakt geen productieclaim.
 
 Query Monitor kan in een concrete lokale/staging WordPress-runtime als tijdelijke diagnostische plugin worden gebruikt wanneer runtime-inspectie nodig is, maar wordt bewust niet als generieke base-plugin geïnstalleerd. Product- of target-specifieke plugins blijven profiel- of staging-gebonden.
@@ -48,6 +56,8 @@ bash script/validate
 bash script/audit
 bash script/package
 ```
+
+`script/validate` voert naast contract- en profielvalidatie ook een netwerkloze gedragsregressie van `script/playground` uit met testdoubles. Daarmee worden de standaardargumenten, lokale Blueprint-route en fail-closed grenzen zonder echte npm-download getest.
 
 `script/audit` is een dunne wrapper rond de bestaande statische audit en verwacht dezelfde gevalideerde environment, tooling en profile-resolution evidence als de workflow. Voor normale audits blijft **Full WordPress Plugin Audit** de voorkeursroute.
 
@@ -105,6 +115,7 @@ De machineleesbare route- en veiligheidsafspraken staan in `.audit/contract.json
 - Runtime draait alleen wanneer `run_runtime=true` is gekozen.
 - Scannerhits zijn kandidaat-findings; pas specialistische validatie maakt er een bevestigde bevinding van.
 - De CycloneDX-SBOM is inventaris/provenance-evidence en bewijst op zichzelf geen dependencyveiligheid, licentiecompliance of exploitability.
+- De Playground-helper accepteert geen remote Blueprint-URL en verruimt geen Blueprint-bestandstoegang; een ruimere Blueprint-run vereist een afzonderlijke, expliciet beoordeelde route buiten de generieke helper.
 
 ## Bewijsgrens
 
