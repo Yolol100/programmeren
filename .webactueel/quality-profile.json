@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "controller": "webactueel-workflow",
+  "repository": "Yolol100/programmeren",
+  "repo_class": "core",
+  "role": "wordpress-and-software-audit-harness",
+  "owner_skill": "wordpressqualityarchitect",
+  "profile_scope": "generic_capability",
+  "project_truth": {
+    "authority": "Project Plugin/Programmeren live manifest",
+    "must_not_be_stored_in_repo": true
+  },
+  "master_rule_ids": [
+    "repo.profile.contract",
+    "repo.role.boundary",
+    "repo.hygiene",
+    "repo.tests",
+    "repo.provenance",
+    "repo.dependencies"
+  ],
+  "capability_evidence": [
+    "static-analysis",
+    "security-scanning",
+    "dependency-audit",
+    "sbom-provenance",
+    "controlled-wordpress-runtime"
+  ],
+  "validation": {
+    "commands": [
+      "bash script/validate",
+      "bash script/audit"
+    ],
+    "workflow_gates": [
+      "Full WordPress Plugin Audit"
+    ]
+  },
+  "evidence_contract": {
+    "commit_sha": true,
+    "result_readback": true,
+    "artifact_or_result_identity": true,
+    "owner_acceptance": true
+  },
+  "closure_contract": {
+    "repo_success_is_not_workflow_complete": true,
+    "temporary_target_evidence_off_default_branch": true,
+    "project_truth_off_default_branch": true
+  }
+}
