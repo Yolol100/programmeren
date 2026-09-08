@@ -6,6 +6,7 @@ PROJECT_DIR="${1:-.}"
 WORDPRESS_VERSION="${WORDPRESS_VERSION:-latest}"
 PHP_VERSION="${PHP_VERSION:-8.3}"
 PORT="${PORT:-9400}"
+BLUEPRINT="${BLUEPRINT:-}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js is required (20.18+)." >&2
@@ -24,9 +25,27 @@ if (( node_major < 20 || (node_major == 20 && node_minor < 18) )); then
   exit 2
 fi
 
+blueprint_args=()
+if [[ -n "$BLUEPRINT" ]]; then
+  case "$BLUEPRINT" in
+    http://*|https://*)
+      echo "Remote Blueprint URLs are not accepted by this helper; use a reviewed local JSON/ZIP/directory instead." >&2
+      exit 2
+      ;;
+  esac
+  if [[ ! -e "$BLUEPRINT" ]]; then
+    echo "Blueprint path does not exist: $BLUEPRINT" >&2
+    exit 2
+  fi
+  blueprint_dir="$(cd "$(dirname "$BLUEPRINT")" && pwd)"
+  BLUEPRINT="$blueprint_dir/$(basename "$BLUEPRINT")"
+  blueprint_args+=("--blueprint=${BLUEPRINT}")
+fi
+
 cd "$PROJECT_DIR"
 exec npx --yes "@wp-playground/cli@${PLAYGROUND_VERSION}" server \
   --auto-mount \
   --wp="${WORDPRESS_VERSION}" \
   --php="${PHP_VERSION}" \
-  --port="${PORT}"
+  --port="${PORT}" \
+  "${blueprint_args[@]}"

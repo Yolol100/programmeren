@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/bin" "$TMP/project"
+
+cat > "$TMP/bin/node" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in
+  *"split(\".\")[0]"*) echo 22 ;;
+  *"split(\".\")[1]"*) echo 0 ;;
+  *) exit 2 ;;
+esac
+EOF
+cat > "$TMP/bin/npx" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "${PLAYGROUND_CAPTURE:?}"
+EOF
+chmod +x "$TMP/bin/node" "$TMP/bin/npx"
+
+capture="$TMP/default.args"
+PATH="$TMP/bin:$PATH" PLAYGROUND_CAPTURE="$capture" bash "$ROOT/script/playground" "$TMP/project"
+grep -Fx -- '@wp-playground/cli@3.1.53' "$capture"
+grep -Fx -- 'server' "$capture"
+grep -Fx -- '--auto-mount' "$capture"
+grep -Fx -- '--wp=latest' "$capture"
+grep -Fx -- '--php=8.3' "$capture"
+grep -Fx -- '--port=9400' "$capture"
+if grep -F -- '--blueprint=' "$capture"; then
+  echo 'default route unexpectedly supplied a Blueprint' >&2
+  exit 1
+fi
+
+printf '{"landingPage":"/wp-admin/"}\n' > "$TMP/blueprint.json"
+capture="$TMP/blueprint.args"
+PATH="$TMP/bin:$PATH" PLAYGROUND_CAPTURE="$capture" BLUEPRINT="$TMP/blueprint.json" bash "$ROOT/script/playground" "$TMP/project"
+grep -Fx -- "--blueprint=$TMP/blueprint.json" "$capture"
+if grep -F -- '--blueprint-may-read-adjacent-files' "$capture"; then
+  echo 'helper must not grant adjacent-file Blueprint access' >&2
+  exit 1
+fi
+
+if PATH="$TMP/bin:$PATH" PLAYGROUND_CAPTURE="$TMP/remote.args" BLUEPRINT='https://example.com/blueprint.zip' bash "$ROOT/script/playground" "$TMP/project"; then
+  echo 'remote Blueprint URL should fail closed' >&2
+  exit 1
+fi
+if PATH="$TMP/bin:$PATH" PLAYGROUND_CAPTURE="$TMP/missing.args" BLUEPRINT="$TMP/missing.json" bash "$ROOT/script/playground" "$TMP/project"; then
+  echo 'missing Blueprint path should fail closed' >&2
+  exit 1
+fi
+
+echo 'playground helper: OK'
