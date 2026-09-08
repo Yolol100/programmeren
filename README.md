@@ -19,6 +19,20 @@ De generieke `base`-audit voert waar toepasbaar uit:
 
 De centrale tooling is gepind en werkt zonder apart account, API-key of MCP-server.
 
+## Accountloze WordPress Playground-route
+
+Voor snelle lokale of CI-smokes zonder Docker/MySQL is een aparte, opt-in WordPress Playground helper beschikbaar:
+
+```bash
+bash script/playground ./pad/naar/plugin
+```
+
+Standaard gebruikt deze helper `@wp-playground/cli@3.1.53`, WordPress `latest`, PHP `8.3` en poort `9400`. Deze waarden zijn overschrijfbaar met `PLAYGROUND_VERSION`, `WORDPRESS_VERSION`, `PHP_VERSION` en `PORT`.
+
+Deze route vervangt `wp-env` niet. Gebruik Playground voor snelle, geïsoleerde compatibiliteits- en mounts-smokes; gebruik `wp-env` wanneer Docker/MySQL-/hostingpariteit of de bestaande generieke auditruntime nodig is. De helper draait geen willekeurige target-scripts en maakt geen productieclaim.
+
+Query Monitor kan in een concrete lokale/staging WordPress-runtime als tijdelijke diagnostische plugin worden gebruikt wanneer runtime-inspectie nodig is, maar wordt bewust niet als generieke base-plugin geïnstalleerd. Product- of target-specifieke plugins blijven profiel- of staging-gebonden.
+
 ## Onderhoud en bijdragen
 
 De repository gebruikt een kleine set vaste conventies:
