@@ -1,0 +1,8 @@
+{
+  "request_id": "wordpressconnector-20260909T2054Z-c935a496",
+  "target_repo": "Yolol100/wordpressconnector",
+  "target_ref": "c935a496a96c037e3d61099cfb8acb977edc23f4",
+  "target_path": "plugin/wordpressconnector",
+  "run_runtime": true,
+  "php_version": "8.3"
+}
