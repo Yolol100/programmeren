@@ -43,7 +43,7 @@ concurrency:
 jobs:
   audit:
     name: Generic plugin audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     outputs:
       request_id: ${{ steps.request.outputs.request_id }}
@@ -349,7 +349,7 @@ jobs:
     name: Plugin-specific runtime (${{ matrix.profile_id }})
     needs: audit
     if: ${{ always() && needs.audit.result != 'cancelled' && needs.audit.outputs.run_runtime == 'true' && needs.audit.outputs.specialized_runtime == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
       fail-fast: false
