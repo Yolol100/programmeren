@@ -48,15 +48,13 @@ jobs:
           for tool_id in ('actionlint','gitleaks','semgrep-ce','zizmor'):
               version=tools[tool_id]['version']
               assert version in installer, f'{tool_id} version {version} is not wired in install_cli_tools.sh'
+          assert 'semgrep-version.txt' in installer, 'installer must record Semgrep version evidence'
+          assert 'semgrep-python-deps.txt' in installer, 'installer must record resolved Semgrep dependency graph'
 
           static=pathlib.Path('.audit/scripts/run_static_audit.sh').read_text(encoding='utf-8')
           assert 'semgrep mcp' not in static.lower()
           assert 'semgrep login' not in static.lower()
           assert '--metrics=off' in static
-
-          workflow=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
-          assert 'semgrep --version' in workflow, 'tool provenance must record Semgrep version'
-          assert 'semgrep-python-deps.txt' in workflow, 'tool provenance must record resolved Semgrep dependency graph'
           print('toolkit-contract: OK')
           PY
       - name: Validate repository maintenance conventions
