@@ -16,6 +16,8 @@ jobs:
     name: Build compact audit receipt
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      receipt_upload_outcome: ${{ steps.upload_receipt.outcome }}
     steps:
       - name: Checkout trusted audit harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,6 +54,7 @@ jobs:
             --output-dir receipt
 
       - name: Upload compact receipt artifact
+        id: upload_receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -77,3 +80,57 @@ jobs:
           if status != 'completed':
               raise SystemExit(f'Receipt gate failed: terminal status is {status!r}')
           PY
+
+  cleanup-runtime-branch:
+    name: Clean temporary runtime branch
+    needs: receipt
+    if: >-
+      ${{ always()
+          && needs.receipt.outputs.receipt_upload_outcome == 'success'
+          && github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.head_repository.full_name == github.repository
+          && startsWith(github.event.workflow_run.head_branch, 'runtime/') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout trusted cleanup guard from main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Self-test cleanup guard
+        run: python3 script/runtime-branch-cleanup-guard.py --self-test
+
+      - name: Delete unchanged temporary runtime branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          EXPECTED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ref_get="repos/${REPOSITORY}/git/ref/heads/${HEAD_BRANCH}"
+          ref_delete="repos/${REPOSITORY}/git/refs/heads/${HEAD_BRANCH}"
+          err_file="$(mktemp)"
+          trap 'rm -f "$err_file"' EXIT
+
+          if ! current_sha="$(gh api "$ref_get" --jq '.object.sha' 2>"$err_file")"; then
+            if grep -Eqi '404|not found' "$err_file"; then
+              echo "Runtime branch already absent; cleanup is idempotently complete."
+              exit 0
+            fi
+            cat "$err_file" >&2
+            exit 1
+          fi
+
+          python3 script/runtime-branch-cleanup-guard.py \
+            --branch "$HEAD_BRANCH" \
+            --expected-sha "$EXPECTED_HEAD_SHA" \
+            --current-sha "$current_sha"
+
+          gh api --method DELETE "$ref_delete"
+          echo "Deleted unchanged temporary runtime branch: $HEAD_BRANCH"
