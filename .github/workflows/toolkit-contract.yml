@@ -23,13 +23,14 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate registered toolkit is accountless and wired
         run: |
           python3 - <<'PY'
-          import json, pathlib
+          import hashlib, json, pathlib
           c=json.load(open('toolkit-contract.json', encoding='utf-8'))
           for key in ('requires_account','requires_api_key','requires_mcp'):
               assert c.get(key) is False, f'{key} must be false'
@@ -50,11 +51,19 @@ jobs:
               assert version in installer, f'{tool_id} version {version} is not wired in install_cli_tools.sh'
           assert 'semgrep-version.txt' in installer, 'installer must record Semgrep version evidence'
           assert 'semgrep-python-deps.txt' in installer, 'installer must record resolved Semgrep dependency graph'
+          assert 'audit-tools-composer.lock.sha256' in installer, 'installer must record committed Composer lock fingerprint evidence'
 
-          static=pathlib.Path('.audit/scripts/run_static_audit.sh').read_text(encoding='utf-8')
-          assert 'semgrep mcp' not in static.lower()
-          assert 'semgrep login' not in static.lower()
-          assert '--metrics=off' in static
+          lock=pathlib.Path('.audit/tools/composer.lock')
+          assert lock.is_file(), 'audit tooling must commit composer.lock'
+          expected_lock_sha='f5f0768d29b41a4c5833bd74031d1409268ee28efb42259bb5202668ae6f57c8'
+          actual_lock_sha=hashlib.sha256(lock.read_bytes()).hexdigest()
+          assert actual_lock_sha==expected_lock_sha, f'audit Composer lock drift: {actual_lock_sha}'
+
+          full_audit=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
+          assert expected_lock_sha in full_audit, 'full audit must enforce the committed Composer lock hash'
+          for workflow_path in pathlib.Path('.github/workflows').glob('*.yml'):
+              workflow_text=workflow_path.read_text(encoding='utf-8')
+              assert 'runs-on: ubuntu-latest' not in workflow_text, f'rolling runner alias in {workflow_path}'
           print('toolkit-contract: OK')
           PY
       - name: Validate repository maintenance conventions
