@@ -16,7 +16,7 @@ CONCLUSION_STATUS = {
     "cancelled": "cancelled",
     "timed_out": "failed",
     "action_required": "blocked",
-    "neutral": "completed",
+    "neutral": "blocked",
     "skipped": "blocked",
     "stale": "blocked",
 }
@@ -43,6 +43,17 @@ def read_summary_fields(root: Path) -> dict[str, str]:
         return {}
     text = candidates[0].read_text(encoding="utf-8", errors="replace")
     return {m.group(1): m.group(2) for m in FIELD_RE.finditer(text)}
+
+
+def classify_status(run_conclusion: str, has_evidence: bool) -> tuple[str, str | None]:
+    status = CONCLUSION_STATUS.get(run_conclusion, "blocked")
+    error_code = None
+    if not has_evidence:
+        status = "failed" if status == "completed" else status
+        error_code = "NO_EVIDENCE_ARTIFACTS"
+    elif status != "completed":
+        error_code = "AUDIT_RUN_" + re.sub(r"[^A-Z0-9]+", "_", run_conclusion.upper()).strip("_")
+    return status, error_code
 
 
 def main() -> int:
@@ -90,19 +101,13 @@ def main() -> int:
     index_path = args.output_dir / "evidence-index.json"
     write_json(index_path, evidence_index)
 
-    status = CONCLUSION_STATUS.get(args.run_conclusion, "blocked")
-    error_code = None
-    if not files:
-        status = "failed" if status == "completed" else status
-        error_code = "NO_EVIDENCE_ARTIFACTS"
-    elif status != "completed":
-        error_code = "AUDIT_RUN_" + re.sub(r"[^A-Z0-9]+", "_", args.run_conclusion.upper()).strip("_")
-
+    status, error_code = classify_status(args.run_conclusion, bool(files))
     receipt = {
         "schema_version": "1.0",
         "run_id": str(args.run_id),
         "run_attempt": str(args.run_attempt),
         "status": status,
+        "source_conclusion": args.run_conclusion,
         "harness_repository": args.harness_repo,
         "harness_commit": args.harness_sha,
         "request_id": summary.get("request_id"),

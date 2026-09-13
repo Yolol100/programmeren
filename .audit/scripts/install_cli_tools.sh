@@ -4,7 +4,15 @@ set -euo pipefail
 BIN_DIR="${RUNNER_TEMP:-/tmp}/programmeren-audit-bin"
 RESULTS_DIR="${GITHUB_WORKSPACE:-$PWD}/audit-results"
 AUDIT_LOCK="${GITHUB_WORKSPACE:-$PWD}/.audit/tools/composer.lock"
+COMPOSER_VERSION="2.10.3"
 mkdir -p "$BIN_DIR" "$RESULTS_DIR"
+
+actual_composer_version="$(composer --no-ansi --version | awk '{print $3}')"
+if [[ "$actual_composer_version" != "$COMPOSER_VERSION" ]]; then
+  echo "Audit Composer CLI drift: expected $COMPOSER_VERSION, got $actual_composer_version" >&2
+  exit 2
+fi
+printf 'composer=%s\n' "$actual_composer_version" > "$RESULTS_DIR/composer-version.txt"
 
 if [[ ! -f "$AUDIT_LOCK" ]]; then
   echo "Missing committed audit Composer lock: $AUDIT_LOCK" >&2

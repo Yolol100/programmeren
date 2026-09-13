@@ -20,7 +20,7 @@
     {"id":"phpcompatibilitywp","version":"composer-lock","scope":"base","trigger_when":"PHP source is present","outputs":["audit-results/php-compat.log"]},
     {"id":"phpstan-wordpress","version":"composer-lock","scope":"base","trigger_when":"PHP source is present","outputs":["audit-results/phpstan.log"]},
     {"id":"phpunit-project","version":"target-project-declared","scope":"profile-capability","trigger_when":"audit.phpunit-project is active and the target declares phpunit/phpunit with an installed vendor/bin/phpunit","outputs":["audit-results/phpunit.log","audit-results/status.tsv"]},
-    {"id":"composer-audit","version":"runner-composer-v2","scope":"base","trigger_when":"composer.lock is present","outputs":["audit-results/composer-audit.log"]},
+    {"id":"composer-audit","version":"2.10.3","scope":"base","trigger_when":"composer.lock is present","outputs":["audit-results/composer-audit.log","audit-results/composer-version.txt"]},
     {"id":"npm-audit","version":"runner-node","scope":"base","trigger_when":"package-lock.json is present","outputs":["audit-results/npm-audit.log"]},
     {"id":"gitleaks","version":"8.30.1","scope":"base","trigger_when":"every static audit","outputs":["audit-results/gitleaks.json"]},
     {"id":"semgrep-ce","version":"1.177.0","scope":"base","trigger_when":"every static audit","outputs":["audit-results/semgrep.json","audit-results/semgrep-version.txt","audit-results/semgrep-python-deps.txt"]},
@@ -40,6 +40,7 @@
     {"tool":"phpstan-wordpress","path":".audit/scripts/run_static_audit.sh","contains":"phpstan-wordpress"},
     {"tool":"phpunit-project","path":".audit/scripts/run_static_audit.sh","contains":"has_profile_capability audit.phpunit-project"},
     {"tool":"composer-audit","path":".audit/scripts/run_static_audit.sh","contains":"composer audit"},
+    {"tool":"composer-audit","path":".audit/scripts/install_cli_tools.sh","contains":"COMPOSER_VERSION=\"2.10.3\""},
     {"tool":"npm-audit","path":".audit/scripts/run_static_audit.sh","contains":"npm audit"},
     {"tool":"gitleaks","path":".audit/scripts/run_static_audit.sh","contains":"run_check gitleaks"},
     {"tool":"semgrep-ce","path":".audit/scripts/run_static_audit.sh","contains":"SEMGREP_SEND_METRICS=off"},
@@ -53,6 +54,7 @@
     {"tool":"profile-runtime","path":".github/workflows/full-plugin-audit.yml","contains":"profile-runtime:"}
   ],
   "boundaries": [
+    "Composer audit runs are accepted only when the runner Composer CLI reports the contract-pinned exact version; a rolling setup alias may bootstrap the ephemeral runner, but version drift fails closed before scanner evidence is accepted.",
     "Semgrep uses only local repository-owned rules with metrics disabled; no login, token, cloud registry config or MCP server is required or started.",
     "Semgrep Community Edition is a candidate-finding layer; findings require specialist validation and do not automatically prove a vulnerability.",
     "Semgrep is pinned at the top-level CLI version, while its resolved Python dependency graph is recorded per audit run as provenance rather than being misrepresented as a fully hash-locked transitive environment.",
