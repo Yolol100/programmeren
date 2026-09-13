@@ -23,7 +23,7 @@
     {"id":"composer-audit","version":"runner-composer-v2","scope":"base","trigger_when":"composer.lock is present","outputs":["audit-results/composer-audit.log"]},
     {"id":"npm-audit","version":"runner-node","scope":"base","trigger_when":"package-lock.json is present","outputs":["audit-results/npm-audit.log"]},
     {"id":"gitleaks","version":"8.30.1","scope":"base","trigger_when":"every static audit","outputs":["audit-results/gitleaks.json"]},
-    {"id":"semgrep-ce","version":"1.177.0","scope":"base","trigger_when":"every static audit","outputs":["audit-results/semgrep.json","audit-results/semgrep-python-deps.txt"]},
+    {"id":"semgrep-ce","version":"1.177.0","scope":"base","trigger_when":"every static audit","outputs":["audit-results/semgrep.json","audit-results/semgrep-version.txt","audit-results/semgrep-python-deps.txt"]},
     {"id":"trivy","version":"0.74.0","scope":"base","trigger_when":"every full audit","outputs":["audit-results/trivy.json"]},
     {"id":"trivy-sbom","version":"0.74.0","scope":"base","trigger_when":"every full audit","outputs":["audit-results/sbom.cdx.json","audit-results/sbom.cdx.sha256"]},
     {"id":"actionlint","version":"1.7.12","scope":"base","trigger_when":"target contains GitHub Actions","outputs":["audit-results/actionlint.log"]},
