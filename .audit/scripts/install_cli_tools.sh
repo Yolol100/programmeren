@@ -3,7 +3,14 @@ set -euo pipefail
 
 BIN_DIR="${RUNNER_TEMP:-/tmp}/programmeren-audit-bin"
 RESULTS_DIR="${GITHUB_WORKSPACE:-$PWD}/audit-results"
+AUDIT_LOCK="${GITHUB_WORKSPACE:-$PWD}/.audit/tools/composer.lock"
 mkdir -p "$BIN_DIR" "$RESULTS_DIR"
+
+if [[ ! -f "$AUDIT_LOCK" ]]; then
+  echo "Missing committed audit Composer lock: $AUDIT_LOCK" >&2
+  exit 2
+fi
+sha256sum "$AUDIT_LOCK" > "$RESULTS_DIR/audit-tools-composer.lock.sha256"
 
 # actionlint v1.7.12 (release asset digest verified against GitHub release metadata).
 actionlint_archive="${RUNNER_TEMP:-/tmp}/actionlint_1.7.12_linux_amd64.tar.gz"
