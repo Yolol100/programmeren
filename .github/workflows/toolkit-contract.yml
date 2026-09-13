@@ -61,9 +61,10 @@ jobs:
 
           full_audit=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
           assert expected_lock_sha in full_audit, 'full audit must enforce the committed Composer lock hash'
+          rolling_runner='runs-on: ubuntu-' + 'latest'
           for workflow_path in pathlib.Path('.github/workflows').glob('*.yml'):
               workflow_text=workflow_path.read_text(encoding='utf-8')
-              assert 'runs-on: ubuntu-latest' not in workflow_text, f'rolling runner alias in {workflow_path}'
+              assert rolling_runner not in workflow_text, f'rolling runner alias in {workflow_path}'
           print('toolkit-contract: OK')
           PY
       - name: Validate repository maintenance conventions
