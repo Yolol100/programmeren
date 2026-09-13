@@ -14,7 +14,7 @@ permissions:
 jobs:
   receipt:
     name: Build compact audit receipt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout trusted audit harness
@@ -59,3 +59,21 @@ jobs:
           path: receipt/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce receipt terminal status
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('receipt/result-receipt.json')
+          if not path.is_file():
+              raise SystemExit('Receipt gate failed: result-receipt.json is missing')
+          receipt = json.loads(path.read_text(encoding='utf-8'))
+          status = receipt.get('status')
+          print(f'Receipt terminal status: {status}')
+          if status != 'completed':
+              raise SystemExit(f'Receipt gate failed: terminal status is {status!r}')
+          PY
