@@ -30,7 +30,7 @@ jobs:
       - name: Validate registered toolkit is accountless and wired
         run: |
           python3 - <<'PY'
-          import hashlib, json, pathlib
+          import hashlib, json, pathlib, re
           c=json.load(open('toolkit-contract.json', encoding='utf-8'))
           for key in ('requires_account','requires_api_key','requires_mcp'):
               assert c.get(key) is False, f'{key} must be false'
@@ -55,12 +55,13 @@ jobs:
 
           lock=pathlib.Path('.audit/tools/composer.lock')
           assert lock.is_file(), 'audit tooling must commit composer.lock'
-          expected_lock_sha='f5f0768d29b41a4c5833bd74031d1409268ee28efb42259bb5202668ae6f57c8'
+          full_audit=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
+          lock_owner=re.search(r"expected_lock_sha='([0-9a-f]{64})'", full_audit)
+          assert lock_owner, 'full audit must own the canonical committed Composer lock hash'
+          expected_lock_sha=lock_owner.group(1)
           actual_lock_sha=hashlib.sha256(lock.read_bytes()).hexdigest()
           assert actual_lock_sha==expected_lock_sha, f'audit Composer lock drift: {actual_lock_sha}'
 
-          full_audit=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
-          assert expected_lock_sha in full_audit, 'full audit must enforce the committed Composer lock hash'
           rolling_runner='runs-on: ubuntu-' + 'latest'
           for workflow_path in pathlib.Path('.github/workflows').glob('*.yml'):
               workflow_text=workflow_path.read_text(encoding='utf-8')
