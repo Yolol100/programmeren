@@ -42,10 +42,21 @@ jobs:
               assert a['contains'] in p.read_text(encoding='utf-8'), f"{a['tool']} not wired in {p}"
               covered.add(a['tool'])
           assert covered==set(ids), f'unwired tools: {set(ids)-covered}'
+
+          tools={t['id']: t for t in c['tools']}
+          installer=pathlib.Path('.audit/scripts/install_cli_tools.sh').read_text(encoding='utf-8')
+          for tool_id in ('actionlint','gitleaks','semgrep-ce','zizmor'):
+              version=tools[tool_id]['version']
+              assert version in installer, f'{tool_id} version {version} is not wired in install_cli_tools.sh'
+
           static=pathlib.Path('.audit/scripts/run_static_audit.sh').read_text(encoding='utf-8')
           assert 'semgrep mcp' not in static.lower()
           assert 'semgrep login' not in static.lower()
           assert '--metrics=off' in static
+
+          workflow=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
+          assert 'semgrep --version' in workflow, 'tool provenance must record Semgrep version'
+          assert 'semgrep-python-deps.txt' in workflow, 'tool provenance must record resolved Semgrep dependency graph'
           print('toolkit-contract: OK')
           PY
       - name: Validate repository maintenance conventions
@@ -125,11 +136,17 @@ jobs:
           assert validator.is_file(), 'CycloneDX validator must exist'
           print('profile-aware PHPUnit, target provenance and SBOM policy: OK')
           PY
-      - name: Validate local Semgrep rules with pinned CE CLI
+      - name: Validate local Semgrep rules with contract-pinned CE CLI
         shell: bash
         run: |
+          SEMGREP_VERSION="$(python3 - <<'PY'
+          import json
+          data=json.load(open('toolkit-contract.json', encoding='utf-8'))
+          print(next(t['version'] for t in data['tools'] if t['id']=='semgrep-ce'))
+          PY
+          )"
           python3 -m venv /tmp/semgrep-contract
-          /tmp/semgrep-contract/bin/python -m pip install --disable-pip-version-check --no-input 'semgrep==1.170.0'
+          /tmp/semgrep-contract/bin/python -m pip install --disable-pip-version-check --no-input "semgrep==$SEMGREP_VERSION"
           SEMGREP_SEND_METRICS=off /tmp/semgrep-contract/bin/semgrep scan --validate --metrics=off --config .audit/semgrep/wordpress-security.yml
       - name: Generate fixture CycloneDX SBOM with pinned Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
