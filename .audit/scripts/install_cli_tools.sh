@@ -2,7 +2,8 @@
 set -euo pipefail
 
 BIN_DIR="${RUNNER_TEMP:-/tmp}/programmeren-audit-bin"
-mkdir -p "$BIN_DIR"
+RESULTS_DIR="${GITHUB_WORKSPACE:-$PWD}/audit-results"
+mkdir -p "$BIN_DIR" "$RESULTS_DIR"
 
 # actionlint v1.7.12 (release asset digest verified against GitHub release metadata).
 actionlint_archive="${RUNNER_TEMP:-/tmp}/actionlint_1.7.12_linux_amd64.tar.gz"
@@ -32,7 +33,7 @@ ln -sf "$zizmor_venv/bin/zizmor" "$BIN_DIR/zizmor"
 
 # Semgrep Community Edition is local-only here. Do not login, start MCP, use remote registry configs,
 # or upload findings. The exact CLI version is pinned; scans use only the repository-owned rule file
-# with metrics explicitly disabled. The resolved Python dependency graph is captured as audit evidence.
+# with metrics explicitly disabled. Record the resolved dependency graph rather than claiming it is hash-locked.
 semgrep_venv="${RUNNER_TEMP:-/tmp}/semgrep-venv"
 python3 -m venv "$semgrep_venv"
 "$semgrep_venv/bin/python" -m pip install \
@@ -40,5 +41,7 @@ python3 -m venv "$semgrep_venv"
   --no-input \
   "semgrep==1.177.0"
 ln -sf "$semgrep_venv/bin/semgrep" "$BIN_DIR/semgrep"
+"$semgrep_venv/bin/semgrep" --version > "$RESULTS_DIR/semgrep-version.txt"
+"$semgrep_venv/bin/python" -m pip freeze | LC_ALL=C sort > "$RESULTS_DIR/semgrep-python-deps.txt"
 
 echo "$BIN_DIR" >> "$GITHUB_PATH"
