@@ -117,6 +117,10 @@ De machineleesbare route- en veiligheidsafspraken staan in `.audit/contract.json
 - De CycloneDX-SBOM is inventaris/provenance-evidence en bewijst op zichzelf geen dependencyveiligheid, licentiecompliance of exploitability.
 - De Playground-helper accepteert geen remote Blueprint-URL en verruimt geen Blueprint-bestandstoegang; een ruimere Blueprint-run vereist een afzonderlijke, expliciet beoordeelde route buiten de generieke helper.
 
+## Receipt-provenance
+
+`result-receipt.json` en `evidence-index.json` bewaren de commit van de geaudite audit-run en daarnaast afzonderlijk de commit van de vertrouwde `main`-code die de receipt bouwde. Deze twee commits mogen verschillen; geen van beide vervangt target-commit- of artifact-hashes.
+
 ## Bewijsgrens
 
 Een groene run bewijst alleen de werkelijk uitgevoerde statische en controlled-runtime checks. Het is geen bewijs voor staging, productie, een volledige browser/device-matrix of menselijke toegankelijkheidstests.
