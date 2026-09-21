@@ -25,6 +25,14 @@ jobs:
           ref: main
           persist-credentials: false
 
+      - name: Capture trusted receipt builder commit
+        id: receipt_builder
+        shell: bash
+        run: |
+          sha="$(git rev-parse HEAD)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid receipt builder SHA: $sha" >&2; exit 2; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: Download source-run evidence artifacts
         shell: bash
         env:
@@ -43,6 +51,7 @@ jobs:
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           HARNESS_REPOSITORY: ${{ github.repository }}
           HARNESS_SHA: ${{ github.event.workflow_run.head_sha }}
+          RECEIPT_BUILDER_SHA: ${{ steps.receipt_builder.outputs.sha }}
         run: |
           python3 script/build-evidence-receipt.py \
             --evidence-dir evidence \
@@ -51,6 +60,7 @@ jobs:
             --run-conclusion "$RUN_CONCLUSION" \
             --harness-repo "$HARNESS_REPOSITORY" \
             --harness-sha "$HARNESS_SHA" \
+            --receipt-builder-sha "$RECEIPT_BUILDER_SHA" \
             --output-dir receipt
 
       - name: Upload compact receipt artifact
