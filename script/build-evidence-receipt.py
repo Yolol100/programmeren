@@ -64,6 +64,7 @@ def main() -> int:
     ap.add_argument("--run-conclusion", required=True)
     ap.add_argument("--harness-repo", required=True)
     ap.add_argument("--harness-sha", required=True)
+    ap.add_argument("--receipt-builder-sha", required=True)
     ap.add_argument("--output-dir", type=Path, required=True)
     args = ap.parse_args()
 
@@ -93,6 +94,10 @@ def main() -> int:
             "target_path": summary.get("path"),
             "profile": summary.get("profile"),
         },
+        "receipt_builder": {
+            "repository": args.harness_repo,
+            "commit": args.receipt_builder_sha,
+        },
         "files": files,
         "file_count": len(files),
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -110,6 +115,8 @@ def main() -> int:
         "source_conclusion": args.run_conclusion,
         "harness_repository": args.harness_repo,
         "harness_commit": args.harness_sha,
+        "receipt_builder_repository": args.harness_repo,
+        "receipt_builder_commit": args.receipt_builder_sha,
         "request_id": summary.get("request_id"),
         "target_repository": summary.get("repository"),
         "target_ref": summary.get("ref"),
