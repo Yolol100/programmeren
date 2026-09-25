@@ -11,6 +11,12 @@
 - Preserve immutable target commit capture, base-profile fail-closed behavior, public/private evidence boundaries and pinned audit tooling.
 - Never commit target credentials, private plugin source copied from restricted repositories, secrets or run-specific artifacts.
 
+## Externe kenniscontext
+- De gedeelde Library-corpus `Webactueel Kennisbronnen/YouTube/YouTube_Kennisbron_Master.zip` mag door `webactueel-workflow` en `wordpressqualityarchitect` worden gebruikt voor discovery, voorbeelden en hypothesevorming.
+- Kopieer transcriptrecords of corpusshards nooit naar deze repository of naar `main`. De corpus is geen projectwaarheid en geen auditartifact.
+- Een videobron bewijst geen actuele API-, security-, release- of runtimeclaim. Valideer materiele claims tegen de actieve Project Plugin/Programmeren-bron, actuele primaire makerdocumentatie en de vereiste uitvoeringslaag.
+- Houd auditbewijs strikt bij de werkelijk uitgevoerde source/controlled-runtime checks; externe kenniscontext mag de status van een auditrun niet groen maken.
+
 ## Validation
 Use the repository entrypoints:
 
