@@ -121,6 +121,10 @@ De machineleesbare route- en veiligheidsafspraken staan in `.audit/contract.json
 
 `result-receipt.json` en `evidence-index.json` bewaren de commit van de geaudite audit-run en daarnaast afzonderlijk de commit van de vertrouwde `main`-code die de receipt bouwde. Deze twee commits mogen verschillen; geen van beide vervangt target-commit- of artifact-hashes.
 
+## Externe kenniscontext
+
+De gedeelde YouTube-Library-corpus kan door de Webactueel-controller en `wordpressqualityarchitect` worden geraadpleegd voor discovery en hypothesevorming. De audit-harness zelf neemt geen transcriptshards op, telt video-inhoud niet als auditbewijs en slaat geen Library-/projectwaarheid op `main` op. Veranderlijke WordPress-, WooCommerce-, security- en API-claims blijven gebonden aan actuele primaire documentatie en werkelijk runtimebewijs.
+
 ## Bewijsgrens
 
 Een groene run bewijst alleen de werkelijk uitgevoerde statische en controlled-runtime checks. Het is geen bewijs voor staging, productie, een volledige browser/device-matrix of menselijke toegankelijkheidstests.
