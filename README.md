@@ -1,5 +1,7 @@
 # Programmeren - WordPress Plugin Audit Harness
 
+> **Portfoliostatus:** actief ondersteunend · WordPress plugin-audit en release-evidence · geen clientcase
+
 Centrale auditomgeving voor WordPress-plugins. De repository levert gecontroleerd bewijs; `wordpressqualityarchitect` blijft eigenaar van de inhoudelijke beoordeling.
 
 ## Kern
