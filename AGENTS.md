@@ -32,3 +32,18 @@ Use `bash script/package` only when a package artifact is actually part of the t
 - A CycloneDX SBOM is inventory/provenance evidence, not proof of dependency safety, licensing or exploitability.
 - A green audit proves only executed static/controlled-runtime layers; it is not staging, production, full browser/device or human accessibility proof.
 - Do not merge, publish or deploy solely because the harness is green.
+
+## Agent-capability- en impactbeleid
+
+Voordat een agent repository- of externe state wijzigt:
+
+- Classificeer de bedoelde actie als `read_only`, `safe_write` of `high_risk_write`.
+- `read_only` mag inspecteren, zoeken, diffen, linten en testen zonder externe state te muteren.
+- `safe_write` moet begrensd en omkeerbaar zijn, met target-preflight, stale-state/idempotency-bescherming waar relevant, exacte readback en rollback wanneer het target dit ondersteunt.
+- `high_risk_write` omvat destructieve, productie-, deploy-, publicatie-, permission-, securitygevoelige of breed gescopeerde mutaties. Houd die achter expliciete owner/approval en sterkere verificatie.
+- Toolbeschikbaarheid, een agentverzoek of groene CI verleent nooit vanzelf extra schrijfrechten.
+
+Bouw vóór niet-triviale bronwijzigingen een begrensde impactcontext uit gewijzigde paden, directe imports/afhankelijkheden, relevante contracten/workflows en de tests die het gedrag bewijzen. Een gegenereerde graph/index is alleen commit-gebonden evidence/cache: geen projectwaarheid, duurzaam geheugen of tweede controller.
+
+GitHub Trending en externe repositories zijn alleen discovery-signalen. Distilleer patronen en verifieer die daarna tegen het ownercontract, actuele primaire/officiële documentatie en lokale regressie-evidence. Kopieer geen code, prompts, assets of configuratie zonder compatibele gebruiksrechten en een expliciete repositoryreden.
+
