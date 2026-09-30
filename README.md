@@ -4,6 +4,19 @@
 
 Centrale auditomgeving voor WordPress-plugins. De repository levert gecontroleerd bewijs; `wordpressqualityarchitect` blijft eigenaar van de inhoudelijke beoordeling.
 
+**Developer profile:** [Andrew Baeten](https://github.com/Yolol100) · [Portfolio cases](https://andrewbaeten.nl/category/cases)
+
+## What it demonstrates
+
+| Area | Implementation |
+| --- | --- |
+| WordPress QA | Syntax, coding standards, Plugin Check and controlled runtime validation |
+| Security | Gitleaks, Semgrep CE, Trivy and dependency auditing |
+| Supply chain | CycloneDX SBOM, SHA-256 provenance and pinned tooling |
+| GitHub Actions | actionlint, zizmor and immutable workflow evidence |
+| Reproducibility | Fixed profiles, receipts, artifacts and repository-native validation |
+| Safety | Read-only target handling and runtime state kept off the default branch |
+
 ## Kern
 
 De generieke `base`-audit voert waar toepasbaar uit:
