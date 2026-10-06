@@ -17,6 +17,7 @@ on:
       - '.github/*TEMPLATE.md'
       - 'script/**'
       - 'README.md'
+      - 'AGENTS.md'
 
 permissions:
   contents: read
@@ -76,6 +77,17 @@ jobs:
               assert rolling_runner not in workflow_text, f'rolling runner alias in {workflow_path}'
           print('toolkit-contract: OK')
           PY
+      - name: Set up pinned Composer for harness self-audit
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.3'
+          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
+          coverage: none
+        env:
+          fail-fast: true
+      - name: Audit harness Composer dependencies
+        shell: bash
+        run: composer audit --locked --no-interaction --format=json --working-dir=.audit/tools
       - name: Validate repository maintenance conventions
         shell: bash
         run: |
@@ -97,6 +109,16 @@ jobs:
           issue_template = Path('.github/ISSUE_TEMPLATE.md').read_text(encoding='utf-8')
           for heading in ('## Problem', '## Reproduction or evidence', '## Expected result', '## Verification'):
               assert heading in issue_template, f'missing issue template heading: {heading}'
+
+          agents = Path('AGENTS.md').read_text(encoding='utf-8')
+          for invariant in (
+              'webactueel-workflow',
+              'wordpressqualityarchitect',
+              'runtime/**',
+              'high_risk_write',
+              'groene CI verleent nooit vanzelf extra schrijfrechten',
+          ):
+              assert invariant in agents, f'missing AGENTS.md safety invariant: {invariant}'
 
           package = Path('script/package').read_text(encoding='utf-8')
           assert 'git archive' in package

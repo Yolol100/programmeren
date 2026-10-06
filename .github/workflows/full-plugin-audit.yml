@@ -136,7 +136,7 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ steps.request.outputs.php_version }}
-          tools: composer:v2
+          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
           coverage: none
         env:
           fail-fast: true
@@ -151,17 +151,19 @@ jobs:
         id: tools
         shell: bash
         run: |
-          composer install --working-dir=.audit/tools --no-interaction --no-progress --prefer-dist --no-plugins --no-scripts
+          mkdir -p audit-results
           expected_lock_sha='f5f0768d29b41a4c5833bd74031d1409268ee28efb42259bb5202668ae6f57c8'
           actual_lock_sha="$(sha256sum .audit/tools/composer.lock | awk '{print $1}')"
           if [[ "$actual_lock_sha" != "$expected_lock_sha" ]]; then
             echo "Audit dependency graph drift: expected $expected_lock_sha, got $actual_lock_sha" >&2
             exit 2
           fi
+          composer audit --locked --no-interaction --format=json --working-dir=.audit/tools \
+            > audit-results/audit-tools-composer-audit.json
+          composer install --working-dir=.audit/tools --no-interaction --no-progress --prefer-dist --no-plugins --no-scripts
           .audit/tools/vendor/bin/phpcs --config-set installed_paths \
             "${GITHUB_WORKSPACE}/.audit/tools/vendor/wp-coding-standards/wpcs,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsutils,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcsstandards/phpcsextra,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/php-compatibility,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-wp,${GITHUB_WORKSPACE}/.audit/tools/vendor/phpcompatibility/phpcompatibility-paragonie"
           .audit/scripts/install_cli_tools.sh
-          mkdir -p audit-results
           cp .audit/tools/composer.lock audit-results/audit-tools-composer.lock
 
       - name: Record generic audit tool provenance
