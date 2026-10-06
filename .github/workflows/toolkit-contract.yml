@@ -54,9 +54,19 @@ jobs:
           assert 'semgrep-python-deps.txt' in installer, 'installer must record resolved Semgrep dependency graph'
           assert 'audit-tools-composer.lock.sha256' in installer, 'installer must record committed Composer lock fingerprint evidence'
 
+          full_audit=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
+          for required in (
+              "node-version: '24.21.0'",
+              'node --version',
+              'npm --version',
+              'npm config get registry',
+              'npm_audit_threshold=high',
+              'npm_audit_mode=package-lock-only',
+          ):
+              assert required in full_audit, f'missing dependency-audit provenance contract: {required}'
+
           lock=pathlib.Path('.audit/tools/composer.lock')
           assert lock.is_file(), 'audit tooling must commit composer.lock'
-          full_audit=pathlib.Path('.github/workflows/full-plugin-audit.yml').read_text(encoding='utf-8')
           lock_owner=re.search(r"expected_lock_sha='([0-9a-f]{64})'", full_audit)
           assert lock_owner, 'full audit must own the canonical committed Composer lock hash'
           expected_lock_sha=lock_owner.group(1)
