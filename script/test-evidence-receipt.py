@@ -67,3 +67,60 @@ with tempfile.TemporaryDirectory() as tmp:
     assert source_sha != builder_sha
 
 print("evidence receipt provenance: OK")
+
+
+def invoke_receipt_fixture(summary_text):
+    """Return a receipt produced from downloaded-style audit evidence."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        evidence = root / "evidence"
+        evidence.mkdir()
+        (evidence / "artifact.txt").write_text("proof\n", encoding="utf-8")
+        if summary_text is not None:
+            (evidence / "SUMMARY.md").write_text(summary_text, encoding="utf-8")
+        output = root / "receipt"
+        result = subprocess.run([
+            sys.executable, str(MODULE_PATH),
+            "--evidence-dir", str(evidence),
+            "--run-id", "321",
+            "--run-attempt", "1",
+            "--run-conclusion", "success",
+            "--harness-repo", "Yolol100/programmeren",
+            "--harness-sha", "a" * 40,
+            "--receipt-builder-sha", "b" * 40,
+            "--output-dir", str(output),
+        ], check=False, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        return json.loads((output / "result-receipt.json").read_text(encoding="utf-8"))
+
+
+tick = chr(96)
+fields = {
+    "request_id": "audit-321",
+    "repository": "Acme/sample-plugin",
+    "ref": "main",
+    "commit": "c" * 40,
+    "path": ".",
+    "profile": "base",
+}
+full_summary = "# WordPress Plugin Audit\n\n" + "".join(
+    f"- {key}: {tick}{value}{tick}\n" for key, value in fields.items()
+)
+cases = [
+    ("complete summary", full_summary, "completed", None),
+    ("summary missing", None, "failed", "INCOMPLETE_AUDIT_PROVENANCE"),
+    ("empty summary", "", "failed", "INCOMPLETE_AUDIT_PROVENANCE"),
+    ("missing repository", full_summary.replace(f"- repository: {tick}Acme/sample-plugin{tick}\n", ""),
+     "failed", "INCOMPLETE_AUDIT_PROVENANCE"),
+    ("invalid commit", full_summary.replace("c" * 40, "not-a-sha"),
+     "failed", "INCOMPLETE_AUDIT_PROVENANCE"),
+    ("empty request", full_summary.replace(f"- request_id: {tick}audit-321{tick}",
+                                          f"- request_id: {tick}{tick}"),
+     "failed", "INCOMPLETE_AUDIT_PROVENANCE"),
+]
+for name, summary_text, status, error in cases:
+    receipt = invoke_receipt_fixture(summary_text)
+    assert (receipt["status"], receipt["error_code"]) == (status, error), (
+        name, receipt["status"], receipt["error_code"], status, error
+    )
+print(f"audit receipt identity provenance: OK ({len(cases)} cases)")
