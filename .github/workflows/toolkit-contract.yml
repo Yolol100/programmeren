@@ -65,6 +65,12 @@ jobs:
           ):
               assert required in full_audit, f'missing dependency-audit provenance contract: {required}'
 
+          # Independent read-only audit requests must never displace each other.
+          # A global concurrency group cancels older pending runs even with
+          # cancel-in-progress:false; use the runner's normal independent queue.
+          assert re.search(r'(?m)^concurrency\s*:', full_audit) is None, (
+              'full plugin audits must not share a workflow-wide concurrency group'
+          )
           lock=pathlib.Path('.audit/tools/composer.lock')
           assert lock.is_file(), 'audit tooling must commit composer.lock'
           lock_owner=re.search(r"expected_lock_sha='([0-9a-f]{64})'", full_audit)
