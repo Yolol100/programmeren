@@ -36,10 +36,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: full-plugin-audit
-  cancel-in-progress: false
-
 jobs:
   audit:
     name: Generic plugin audit
