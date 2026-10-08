@@ -15,6 +15,10 @@ assert re.search(r"(?m)^\s*(?:zip|tar|7z)\s", static) is None, "raw source archi
 assert "dependency-provenance.json" in static, "target dependency provenance must remain"
 assert "commit=$TARGET_SHA" in static, "immutable target commit must remain"
 assert "path: audit-results/" in workflow, "evidence upload path drift"
-assert "path: target-repo" not in workflow, "target checkout must never be uploaded"
+for step in ("Upload generic audit evidence", "Upload plugin-specific runtime evidence"):
+    upload_step = workflow.split("- name: " + step, 1)[1].split("\n      - name:", 1)[0]
+    assert re.search(r"(?m)^\s*path:\s*target-repo(?:/|\s|$)", upload_step) is None, (
+        step + ": target checkout must never be uploaded"
+    )
 
 print("audit evidence payload hygiene: OK")
