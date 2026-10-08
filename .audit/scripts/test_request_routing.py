@@ -47,7 +47,7 @@ def main():
 
     check = invoke({"target_path": "plugin"}, event="workflow_dispatch")
     assert check.returncode == 0, check.stderr
-    controls = [chr(value) for value in (0, 9, 10, 13, 31, 127)]
+    controls = [chr(value) for value in (0, 9, 10, 13, 31, 127, 133, 0x2028, 0x2029)]
     bad = [
         {"target_path": "../private"},
         {"target_path": "/absolute"},
