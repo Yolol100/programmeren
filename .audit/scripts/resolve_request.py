@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from pathlib import PurePosixPath
 
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -28,8 +29,15 @@ def bool_value(value, default=True):
     fail(f"invalid boolean value: {value!r}")
 
 
+def reject_output_controls(value: str, field: str) -> None:
+    if any(unicodedata.category(ch) in {"Cc", "Zl", "Zp"} for ch in value):
+        fail(f"{field} contains control or line-separator characters")
+
+
 def clean_path(value: str) -> str:
-    value = (value or ".").strip().replace("\\", "/")
+    value = value or "."
+    reject_output_controls(value, "target_path")
+    value = value.strip().replace("\\", "/")
     path = PurePosixPath(value)
     if path.is_absolute() or ".." in path.parts:
         fail("target_path must be relative and may not contain '..'")
@@ -65,7 +73,9 @@ def main() -> None:
     target_path = clean_path(str(data.get("target_path", ".")))
     php_version = str(data.get("php_version", "8.3")).strip()
     run_runtime = bool_value(data.get("run_runtime", True), True)
-    request_id = str(data.get("request_id", "request")).strip()
+    request_id = str(data.get("request_id", "request"))
+    reject_output_controls(request_id, "request_id")
+    request_id = request_id.strip()
 
     if not REPO_RE.fullmatch(target_repo):
         fail("target_repo must be owner/repository")
@@ -73,7 +83,7 @@ def main() -> None:
         fail("target_ref contains unsupported characters")
     if not PHP_RE.fullmatch(php_version):
         fail("php_version must look like 7.4 or 8.x")
-    if not request_id or "\n" in request_id or "\r" in request_id:
+    if not request_id:
         fail("request_id is invalid")
 
     outputs = {
