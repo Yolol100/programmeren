@@ -26,6 +26,7 @@ def run_case(target_repo: str, plugin_files: dict) -> None:
         env = os.environ.copy()
         env.update({
             'TARGET_REPO': target_repo,
+            'TARGET_CHECKOUT_DIR': str(temp_path),
             'PLUGIN_DIR': str(plugin_dir),
             'RESULTS_DIR': str(results),
         })
@@ -52,6 +53,47 @@ def run_case(target_repo: str, plugin_files: dict) -> None:
         assert resolution['runtime']['specialized'] is False, resolution
 
 
+def check_target_checkout_boundary() -> None:
+    with tempfile.TemporaryDirectory(prefix='programmeren-checkout-test-') as temp:
+        workspace = Path(temp)
+        checkout = workspace / 'target-repo'
+        checkout.mkdir()
+        inside = checkout / 'plugin'
+        inside.mkdir()
+        outside = workspace / 'outside-plugin'
+        outside.mkdir()
+        (checkout / 'linked-outside').symlink_to(outside, target_is_directory=True)
+        (checkout / 'linked-inside').symlink_to(inside, target_is_directory=True)
+
+        def resolve(directory: Path):
+            env = os.environ.copy()
+            env.update({
+                'TARGET_REPO': 'Acme/example',
+                'TARGET_CHECKOUT_DIR': str(checkout),
+                'PLUGIN_DIR': str(directory),
+                'RESULTS_DIR': str(workspace / 'results'),
+            })
+            return subprocess.run(
+                [sys.executable, str(RESOLVER)],
+                cwd=ROOT,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        for candidate in (inside, checkout / 'linked-inside'):
+            proc = resolve(candidate)
+            assert proc.returncode == 0, (candidate, proc.stderr)
+
+        for candidate in (outside, checkout / 'linked-outside'):
+            proc = resolve(candidate)
+            assert proc.returncode == 2 and not proc.stdout, (
+                candidate, proc.returncode, proc.stdout, proc.stderr
+            )
+            assert 'escapes target checkout' in proc.stderr, proc.stderr
+
+
 def main() -> None:
     generic = {
         'example.php': "<?php\n/**\n * Plugin Name: Example Plugin\n * Text Domain: example-plugin\n */\n",
@@ -64,6 +106,7 @@ def main() -> None:
     }
     run_case('Acme/example-plugin', generic)
     run_case('Acme/cache-plugin', cache_like)
+    check_target_checkout_boundary()
     print('profile routing regression tests: OK')
 
 
