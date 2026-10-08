@@ -107,6 +107,13 @@ def main() -> int:
     write_json(index_path, evidence_index)
 
     status, error_code = classify_status(args.run_conclusion, bool(files))
+    required_fields = ("request_id", "repository", "ref", "commit", "path", "profile")
+    if status == "completed" and (
+        any(not summary.get(field) for field in required_fields)
+        or re.fullmatch(r"[0-9a-f]{40}", summary.get("commit", "")) is None
+    ):
+        # A green source run without a trustworthy target identity is not evidence of completion.
+        status, error_code = "failed", "INCOMPLETE_AUDIT_PROVENANCE"
     receipt = {
         "schema_version": "1.0",
         "run_id": str(args.run_id),
