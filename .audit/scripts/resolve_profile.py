@@ -55,9 +55,16 @@ def merge_runtime(base: dict, overlay: dict) -> dict:
 
 def main() -> None:
     target_repo = os.environ.get('TARGET_REPO', '').strip()
+    checkout_root = Path(os.environ.get('TARGET_CHECKOUT_DIR', 'target-repo')).resolve()
     plugin_dir = Path(os.environ.get('PLUGIN_DIR', 'target-repo')).resolve()
     if not target_repo or '/' not in target_repo:
         fail('TARGET_REPO must be owner/repository')
+    if not checkout_root.is_dir():
+        fail(f'target checkout root does not exist: {checkout_root}')
+    try:
+        plugin_dir.relative_to(checkout_root)
+    except ValueError:
+        fail('PLUGIN_DIR escapes target checkout')
     if not plugin_dir.is_dir():
         fail(f'PLUGIN_DIR does not exist: {plugin_dir}')
 
