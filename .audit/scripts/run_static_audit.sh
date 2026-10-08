@@ -175,12 +175,8 @@ else
   printf 'actionlint\tSKIP\t0\nzizmor\tSKIP\t0\n' >> "$status_file"
 fi
 
-archive="$RESULTS/${plugin_slug}-source-snapshot.zip"
-(
-  cd "$(dirname "$ROOT")" &&
-  zip -qr "$archive" "$(basename "$ROOT")" -x '*/.git/*' '*/node_modules/*' '*/.cache/*' '*/.phpunit.cache/*'
-)
-sha256sum "$archive" > "$RESULTS/source-snapshot.sha256"
+# Do not archive raw target source into public audit artifacts.
+# The verified target commit and dependency provenance provide the source link.
 
 if (( failures > 0 )); then
   echo "Static audit completed with ${failures} failing check(s)."
