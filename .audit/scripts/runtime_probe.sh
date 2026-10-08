@@ -19,8 +19,11 @@ exec > >(tee "$RESULTS/runtime.log") 2>&1
 
 set +e
 wp-env run cli wp config set WP_DEBUG true --raw
+config_debug_code=$?
 wp-env run cli wp config set WP_DEBUG_LOG true --raw
+config_debug_log_code=$?
 wp-env run cli wp config set WP_DEBUG_DISPLAY false --raw
+config_debug_display_code=$?
 wp-env run cli wp plugin deactivate "$slug"
 deactivate_code=$?
 wp-env run cli wp plugin activate "$slug"
@@ -36,7 +39,7 @@ debug_read_code=$?
 set -e
 
 runtime_fail=0
-if [[ $activate_code -ne 0 || $home_code -ne 0 || $rest_code -ne 0 ]]; then
+if [[ $config_debug_code -ne 0 || $config_debug_log_code -ne 0 || $config_debug_display_code -ne 0 || $deactivate_code -ne 0 || $activate_code -ne 0 || $home_code -ne 0 || $rest_code -ne 0 || $debug_read_code -ne 0 ]]; then
   runtime_fail=1
 fi
 
@@ -45,7 +48,7 @@ if [[ -s "$RESULTS/wp-debug.log" ]] && grep -Eiq 'PHP (Fatal error|Parse error)|
   runtime_fail=1
 fi
 
-printf 'deactivate_exit=%s\nactivate_exit=%s\nhome_exit=%s\nrest_exit=%s\ndebug_read_exit=%s\n' \
-  "$deactivate_code" "$activate_code" "$home_code" "$rest_code" "$debug_read_code" > "$RESULTS/runtime-status.txt"
+printf 'config_wp_debug_exit=%s\nconfig_wp_debug_log_exit=%s\nconfig_wp_debug_display_exit=%s\ndeactivate_exit=%s\nactivate_exit=%s\nhome_exit=%s\nrest_exit=%s\ndebug_read_exit=%s\n' \
+  "$config_debug_code" "$config_debug_log_code" "$config_debug_display_code" "$deactivate_code" "$activate_code" "$home_code" "$rest_code" "$debug_read_code" > "$RESULTS/runtime-status.txt"
 
 exit "$runtime_fail"

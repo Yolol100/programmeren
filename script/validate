@@ -8,6 +8,9 @@ python3 .audit/scripts/validate_contract.py
 python3 .audit/scripts/validate_profiles.py
 python3 .audit/scripts/test_profile_routing.py
 python3 .audit/scripts/test_request_routing.py
+python3 script/test-target-visibility.py
+python3 script/test-runtime-probe.py
+python3 script/runtime-branch-cleanup-guard.py --self-test
 python3 script/test-evidence-receipt.py
 
 bash -n .audit/scripts/check_target_visibility.sh

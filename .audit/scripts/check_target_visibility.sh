@@ -13,11 +13,15 @@ elif [[ -n "${GH_TOKEN:-}" ]]; then
 fi
 
 metadata="$(curl "${args[@]}" "$api_url")"
-private="$(python3 -c 'import json,sys; print(str(json.load(sys.stdin).get("private", True)).lower())' <<<"$metadata")"
+private="$(python3 -c 'import json,sys; v=json.load(sys.stdin).get("private"); print("true" if v is True else "false" if v is False else "unknown")' <<<"$metadata")"
 visibility="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("visibility", "unknown"))' <<<"$metadata")"
 
 echo "Target visibility: ${visibility}"
-if [[ "$HARNESS_VISIBILITY" == "public" && "$private" == "true" ]]; then
-  echo "Refusing to audit a private target from a public harness because logs/artifacts could expose private code or findings." >&2
+if [[ "$HARNESS_VISIBILITY" != "public" && "$HARNESS_VISIBILITY" != "private" ]]; then
+  echo "Unknown or unsupported harness visibility; refusing audit." >&2
+  exit 3
+fi
+if [[ "$HARNESS_VISIBILITY" == "public" && ( "$private" != "false" || "$visibility" != "public" ) ]]; then
+  echo "Refusing to audit a non-public or unverified target from a public harness because logs/artifacts could expose non-public code or findings." >&2
   exit 3
 fi
