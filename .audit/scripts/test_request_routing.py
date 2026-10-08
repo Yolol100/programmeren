@@ -22,7 +22,7 @@ def invoke(changes=None, event="push", ref="runtime/test"):
         env.update(EVENT_NAME=event, REF_NAME=ref, REQUEST_FILE=str(request),
                    GITHUB_RUN_ID="1234", INPUT_TARGET_REPO=str(data["target_repo"]),
                    INPUT_TARGET_REF=str(data["target_ref"]),
-                   INPUT_TARGET_PATH=str(data["target_path"]),
+                   INPUT_TARGET_PATH=(str(data["target_path"]) if event == "workflow_dispatch" else "."),
                    INPUT_RUN_RUNTIME=str(data["run_runtime"]),
                    INPUT_PHP_VERSION=str(data["php_version"]))
         return subprocess.run([sys.executable, str(RESOLVER)], cwd=ROOT, env=env,
