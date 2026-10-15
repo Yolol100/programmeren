@@ -7,7 +7,7 @@
 
 ## Grenzen
 - `main` bevat alleen generieke base-profielen, tests en tooling. Concrete `.audit/request.json` uitsluitend op tijdelijke `runtime/**`-branches of expliciete dispatch. Geen klant-, plugin-, URL- of runspecifieke state, secrets of private code in de default branch.
-- Scope acties als `read_only`, `safe_write` (klein, omkeerbaar, preflight/readback) of `high_risk_write` (uitdrukkelijke toestemming, rollback en sterkere tests). Geen productieactie op grond van groene CI.
+- Scope acties als `read_only`, `safe_write` (klein, omkeerbaar, preflight/readback) of `high_risk_write` (uitdrukkelijke toestemming, rollback en sterkere tests). Een groene CI verleent nooit vanzelf extra schrijfrechten of toestemming voor productie.
 - Houd runtimebewijs, targetcommit, toolpinning, public/private-grenzen, contracts en vaste basischecks intact. Nieuwe externe patronen of Library/YouTube-inhoud zijn hooguit aanvullend; actuele primaire bron en owner beslissen.
 
 ## Verificatie
