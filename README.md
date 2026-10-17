@@ -4,7 +4,7 @@
 
 Centrale auditomgeving voor WordPress-plugins. De repository levert gecontroleerd bewijs; `wordpressqualityarchitect` blijft eigenaar van de inhoudelijke beoordeling.
 
-**Developer profile:** [Andrew Baeten](https://github.com/Yolol100) · [Portfolio cases](https://andrewbaeten.nl/category/cases)
+**Developer profile:** [Andrew Baeten](https://github.com/Yolol100) · [GitHub project index](https://github.com/Yolol100?tab=repositories)
 
 ## What it demonstrates
 
