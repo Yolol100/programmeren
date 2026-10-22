@@ -13,6 +13,7 @@ python3 script/test-runtime-probe.py
 python3 script/test-artifact-payload-hygiene.py
 python3 script/runtime-branch-cleanup-guard.py --self-test
 python3 script/test-evidence-receipt.py
+python3 script/test-evidence-receipt-verifier.py
 
 bash -n .audit/scripts/check_target_visibility.sh
 bash -n .audit/scripts/install_cli_tools.sh
