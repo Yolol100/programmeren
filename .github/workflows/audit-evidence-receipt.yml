@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       receipt_upload_outcome: ${{ steps.upload_receipt.outcome }}
+      receipt_verify_outcome: ${{ steps.verify_receipt.outcome }}
     steps:
       - name: Checkout trusted audit harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,6 +64,20 @@ jobs:
             --receipt-builder-sha "$RECEIPT_BUILDER_SHA" \
             --output-dir receipt
 
+      - name: Verify audit receipt and downloaded evidence
+        id: verify_receipt
+        shell: bash
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          python3 script/verify-evidence-receipt.py \
+            --evidence-dir evidence \
+            --receipt-dir receipt \
+            --expected-run-id "$RUN_ID" \
+            --expected-harness-sha "$SOURCE_SHA" \
+            --expected-conclusion "$SOURCE_CONCLUSION"
       - name: Upload compact receipt artifact
         id: upload_receipt
         if: always()
@@ -97,6 +112,7 @@ jobs:
     if: >-
       ${{ always()
           && needs.receipt.outputs.receipt_upload_outcome == 'success'
+          && needs.receipt.outputs.receipt_verify_outcome == 'success'
           && github.event.workflow_run.event == 'push'
           && github.event.workflow_run.head_repository.full_name == github.repository
           && startsWith(github.event.workflow_run.head_branch, 'runtime/') }}
