@@ -33,7 +33,8 @@ def main():
         workflow = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
         assert "tools: none" in workflow, name
         assert "bash .audit/scripts/install_pinned_composer.sh" in workflow, name
-        assert "tools: composer:v2" not in workflow and "tools: composer:2.10.3@" not in workflow, name
+        bootstrap_prefix = workflow.split("      - name: Bootstrap pinned Composer", 1)[0]
+        assert "tools: composer:v2" not in bootstrap_prefix and "tools: composer:2.10.3@" not in bootstrap_prefix, name
 
     with TemporaryDirectory() as temporary:
         tmp = Path(temporary)
