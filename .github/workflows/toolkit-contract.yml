@@ -97,10 +97,14 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.3'
-          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
+          tools: none
           coverage: none
         env:
           fail-fast: true
+      - name: Bootstrap pinned Composer from verified official archive
+        shell: bash
+        run: bash .audit/scripts/install_pinned_composer.sh
+
       - name: Audit harness Composer dependencies
         shell: bash
         run: composer audit --locked --no-interaction --format=json --working-dir=.audit/tools
