@@ -41,6 +41,7 @@
     {"tool":"phpunit-project","path":".audit/scripts/run_static_audit.sh","contains":"has_profile_capability audit.phpunit-project"},
     {"tool":"composer-audit","path":".audit/scripts/run_static_audit.sh","contains":"composer audit"},
     {"tool":"composer-audit","path":".audit/scripts/install_cli_tools.sh","contains":"COMPOSER_VERSION=\"2.10.3\""},
+    {"tool":"composer-audit","path":".audit/scripts/install_pinned_composer.sh","contains":"COMPOSER_SHA256"},
     {"tool":"npm-audit","path":".audit/scripts/run_static_audit.sh","contains":"npm audit"},
     {"tool":"gitleaks","path":".audit/scripts/run_static_audit.sh","contains":"run_check gitleaks"},
     {"tool":"semgrep-ce","path":".audit/scripts/run_static_audit.sh","contains":"SEMGREP_SEND_METRICS=off"},

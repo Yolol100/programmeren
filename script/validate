@@ -8,6 +8,7 @@ python3 .audit/scripts/validate_contract.py
 python3 .audit/scripts/validate_profiles.py
 python3 .audit/scripts/test_profile_routing.py
 python3 .audit/scripts/test_request_routing.py
+python3 script/test-pinned-composer.py
 python3 script/test-target-visibility.py
 python3 script/test-runtime-probe.py
 python3 script/test-artifact-payload-hygiene.py
@@ -17,6 +18,7 @@ python3 script/test-evidence-receipt-verifier.py
 
 bash -n .audit/scripts/check_target_visibility.sh
 bash -n .audit/scripts/install_cli_tools.sh
+bash -n .audit/scripts/install_pinned_composer.sh
 bash -n .audit/scripts/run_static_audit.sh
 bash -n .audit/scripts/runtime_probe.sh
 bash -n script/audit
