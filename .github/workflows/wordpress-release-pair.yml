@@ -131,5 +131,5 @@ jobs:
         shell: bash
         run: |
           if [[ -f prepared/.wp-env.json ]] && command -v wp-env >/dev/null 2>&1; then
-            (cd prepared && wp-env destroy --yes) || true
+            (cd prepared && wp-env destroy --force) || true
           fi
