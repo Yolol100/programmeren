@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      WP_ENV_HOME: ${{ runner.temp }}/wp-release-pair-${{ github.run_id }}
+      WP_ENV_HOME: /tmp/wp-release-pair-${{ github.run_id }}
       WP_ENV_PORT: '8890'
     steps:
       - name: Checkout trusted generic audit harness
