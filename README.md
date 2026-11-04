@@ -34,6 +34,12 @@ De generieke `base`-audit voert waar toepasbaar uit:
 
 De centrale tooling is gepind en werkt zonder apart account, API-key of MCP-server.
 
+## WordPress theme + plugin als releasepaar testen (Docker/MySQL)
+
+Voor een geautoriseerde **private projectrepository** is er een optionele herbruikbare GitHub Actions-workflow: `.github/workflows/wordpress-release-pair.yml`. Deze test beide installatie-ZIP's in dezelfde echte WordPress/MariaDB-omgeving, met optionele herhaalde pluginupgrade en WordPress Plugin Check. De bestaande algemene plugin-audit en de gespecialiseerde Designchecker/SEO Checker blijven hun eigen taken uitvoeren.
+
+De klant-ZIP's worden uitsluitend als artifact aangeleverd in de **private aanroepende workflow**; er komen geen klantbestanden, reviews, database-export of testresultaten op de publieke hoofdbranch. Volledige instructies en acceptatiegrenzen: [Release-pair QA](docs/RELEASE-PAIR-QA.md).
+
 ## Accountloze WordPress Playground-route
 
 Voor snelle lokale of CI-smokes zonder Docker/MySQL is een aparte, opt-in WordPress Playground helper beschikbaar:
