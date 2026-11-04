@@ -112,8 +112,20 @@ def promote(output: Path) -> None:
     candidate = out / "candidate" / slug
     if not current.is_dir() or not candidate.is_dir():
         raise ValueError("Plugin sources not ready for promotion")
-    shutil.rmtree(current)
-    shutil.move(str(candidate), str(current))
+    # Keep the bind-mounted directory inode intact for a running wp-env Docker stack.
+    # Remove old files inside the mount, then copy the candidate in place.
+    for child in current.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+    for child in candidate.iterdir():
+        target = current / child.name
+        if child.is_dir():
+            shutil.copytree(child, target)
+        else:
+            shutil.copy2(child, target)
+    shutil.rmtree(out / "candidate")
 
 
 def main() -> None:
