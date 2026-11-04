@@ -207,6 +207,9 @@ jobs:
           python3 -m venv /tmp/semgrep-contract
           /tmp/semgrep-contract/bin/python -m pip install --disable-pip-version-check --no-input "semgrep==$SEMGREP_VERSION"
           SEMGREP_SEND_METRICS=off /tmp/semgrep-contract/bin/semgrep scan --validate --metrics=off --config .audit/semgrep/wordpress-security.yml
+      - name: Install verified Trivy binary
+        shell: bash
+        run: bash .audit/scripts/install_verified_trivy.sh
       - name: Generate fixture CycloneDX SBOM with pinned Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -217,6 +220,7 @@ jobs:
           exit-code: '0'
           version: 'v0.74.0'
           cache: 'false'
+          skip-setup-trivy: true
       - name: Validate and fingerprint fixture CycloneDX SBOM
         shell: bash
         run: |

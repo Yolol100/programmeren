@@ -196,6 +196,12 @@ jobs:
           GH_TOKEN: ${{ secrets.PLUGIN_REPO_TOKEN || github.token }}
         run: .audit/scripts/run_static_audit.sh
 
+      - name: Install checksum-verified Trivy binary
+        id: trivy_install
+        continue-on-error: true
+        shell: bash
+        run: bash .audit/scripts/install_verified_trivy.sh
+
       - name: Trivy vulnerability and misconfiguration scan
         id: trivy
         continue-on-error: true
@@ -211,6 +217,7 @@ jobs:
           exit-code: '1'
           version: 'v0.74.0'
           cache: 'false'
+          skip-setup-trivy: true
 
       - name: Trivy CycloneDX SBOM
         id: sbom
