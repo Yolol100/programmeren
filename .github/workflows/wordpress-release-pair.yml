@@ -1,0 +1,135 @@
+name: WordPress theme and plugin release-pair QA
+
+on:
+  workflow_call:
+    inputs:
+      release_artifact:
+        description: 'Artifact uploaded by the caller in the same private workflow run'
+        required: true
+        type: string
+      theme_archive:
+        description: 'Theme ZIP basename'
+        required: true
+        type: string
+      plugin_archive:
+        description: 'Candidate plugin ZIP basename'
+        required: true
+        type: string
+      previous_plugin_archive:
+        description: 'Optional prior plugin ZIP for an upgrade test'
+        required: false
+        default: ''
+        type: string
+      php_version:
+        description: 'Isolated PHP version'
+        required: false
+        default: '8.3'
+        type: string
+      plugin_check:
+        description: 'Run official WordPress Plugin Check'
+        required: false
+        default: true
+        type: boolean
+      lighthouse_lab:
+        description: 'Optional Lighthouse on default WP page (not production speed)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  release-pair:
+    name: Isolated WordPress/MySQL release pair
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      WP_ENV_HOME: ${{ runner.temp }}/wp-release-pair-${{ github.run_id }}
+      WP_ENV_PORT: '8890'
+    steps:
+      - name: Checkout trusted generic audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Yolol100/programmeren
+          ref: main
+          path: harness
+          persist-credentials: false
+      - name: Download caller artifact
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: ${{ inputs.release_artifact }}
+          path: release-input
+      - name: Validate archives without executing submitted source
+        shell: bash
+        env:
+          THEME_ARCHIVE: ${{ inputs.theme_archive }}
+          PLUGIN_ARCHIVE: ${{ inputs.plugin_archive }}
+          PREVIOUS_PLUGIN_ARCHIVE: ${{ inputs.previous_plugin_archive }}
+          PHP_VERSION: ${{ inputs.php_version }}
+        run: |
+          set -euo pipefail
+          for archive in "$THEME_ARCHIVE" "$PLUGIN_ARCHIVE" "$PREVIOUS_PLUGIN_ARCHIVE"; do
+            test -z "$archive" && continue
+            [[ "$archive" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*[.]zip$ ]] || {
+              echo "Invalid ZIP basename (no directories)" >&2; exit 2;
+            }
+            test -f "release-input/$archive"
+          done
+          [[ "$PHP_VERSION" =~ ^8[.][234]$ ]]
+          if [[ -n "$PREVIOUS_PLUGIN_ARCHIVE" ]]; then
+            python3 harness/script/release-pair-prepare.py prepare \
+              --theme "release-input/$THEME_ARCHIVE" --plugin "release-input/$PLUGIN_ARCHIVE" \
+              --previous-plugin "release-input/$PREVIOUS_PLUGIN_ARCHIVE" \
+              --output prepared --php "$PHP_VERSION"
+          else
+            python3 harness/script/release-pair-prepare.py prepare \
+              --theme "release-input/$THEME_ARCHIVE" --plugin "release-input/$PLUGIN_ARCHIVE" \
+              --output prepared --php "$PHP_VERSION"
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+          package-manager-cache: false
+      - name: Install pinned official WordPress Docker environment
+        run: npm install --global --ignore-scripts --no-audit --no-fund @wordpress/env@12.0.0
+      - name: WordPress/MySQL activation, data preservation and upgrade
+        shell: bash
+        run: bash harness/script/release-pair-runtime.sh prepared
+      - name: Official WordPress Plugin Check
+        if: inputs.plugin_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd prepared
+          slug="$(python3 -c 'import json;print(json.load(open("receipt.json"))["plugin_slug"])')"
+          wp-env run cli wp plugin install plugin-check --activate
+          wp-env run cli wp plugin check "$slug" --format=strict-json > evidence/plugin-check.json
+      - name: Optional isolated Lighthouse lab smoke
+        if: inputs.lighthouse_lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts --no-audit --no-fund @lhci/cli@0.15.1
+          cd prepared
+          lhci collect --url="http://127.0.0.1:$WP_ENV_PORT/" \
+            --numberOfRuns=2 --settings.chromeFlags="--no-sandbox"
+          mkdir -p evidence/lighthouse
+          cp -a .lighthouseci/. evidence/lighthouse/
+      - name: Save evidence to CALLER run (no ZIP/source upload)
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: wp-pair-evidence-${{ github.run_id }}
+          path: |
+            prepared/receipt.json
+            prepared/evidence/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Destroy isolated WordPress Docker volumes
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f prepared/.wp-env.json ]] && command -v wp-env >/dev/null 2>&1; then
+            (cd prepared && wp-env destroy --yes) || true
+          fi
