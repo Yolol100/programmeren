@@ -1,0 +1,59 @@
+name: Release-pair synthetic Docker acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'script/release-pair-*'
+      - '.github/workflows/wordpress-release-pair.yml'
+      - '.github/workflows/release-pair-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-test-fixture:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Create tiny synthetic WordPress theme and plugin releases
+        shell: bash
+        run: |
+          mkdir -p fixture
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          out=Path("fixture")
+          fixtures={
+            "theme.zip": {
+              "release-test-theme/style.css": "/*\nTheme Name: Release-pair test theme\nVersion: 1.0\n*/\n",
+              "release-test-theme/index.php": "<?php get_header(); echo '<main>Test</main>'; get_footer();\n",
+            },
+            "plugin.zip": {
+              "release-test-plugin/release-test-plugin.php": "<?php\n/*\nPlugin Name: Release-pair fixture\nVersion: 1.1\n*/\n",
+            },
+            "previous-plugin.zip": {
+              "release-test-plugin/release-test-plugin.php": "<?php\n/*\nPlugin Name: Release-pair fixture\nVersion: 1.0\n*/\n",
+            },
+          }
+          for name, files in fixtures.items():
+            with zipfile.ZipFile(out/name, "w", compression=zipfile.ZIP_DEFLATED) as z:
+              for path, content in files.items():
+                z.writestr(path, content)
+          PY
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: synthetic-pair-no-client-content
+          path: fixture/*.zip
+          if-no-files-found: error
+          retention-days: 3
+  isolated-wp-mysql:
+    needs: package-test-fixture
+    uses: ./.github/workflows/wordpress-release-pair.yml
+    with:
+      release_artifact: synthetic-pair-no-client-content
+      theme_archive: theme.zip
+      plugin_archive: plugin.zip
+      previous_plugin_archive: previous-plugin.zip
+      php_version: '8.3'
+      plugin_check: false
+      lighthouse_lab: false
