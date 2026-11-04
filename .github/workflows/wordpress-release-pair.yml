@@ -52,7 +52,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Yolol100/programmeren
-          ref: main
+          # Trusted main for private callers; same-repo PR uses its own branch for fixtures.
+          ref: ${{ github.event_name == 'pull_request' && github.repository == 'Yolol100/programmeren' && github.head_ref || 'main' }}
           path: harness
           persist-credentials: false
       - name: Download caller artifact
