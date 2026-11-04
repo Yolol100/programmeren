@@ -27,4 +27,8 @@ bash -n script/playground
 bash -n script/test-playground
 bash script/test-playground
 
+python3 -m py_compile script/release-pair-prepare.py
+python3 script/test-release-pair.py
+bash -n script/release-pair-runtime.sh
+
 echo "repository validation: OK"
