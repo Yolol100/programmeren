@@ -36,7 +36,7 @@ def extract_release(source: Path, destination: Path, kind: str) -> tuple[str, st
             if (not SAFE_MEMBER.fullmatch(name.rstrip("/"))
                     or any(part in ("", ".", "..") for part in parts)
                     or len(parts) < 2
-                    or (item.external_attr >> 16) & stat.S_IFMT(stat.S_IFLNK)):
+                    or stat.S_IFMT(item.external_attr >> 16) == stat.S_IFLNK):
                 raise ValueError(f"{kind}: unsafe archive member")
             roots.add(parts[0])
             if item.flag_bits & 0x1:
