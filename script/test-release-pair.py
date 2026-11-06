@@ -115,7 +115,7 @@ class ZipReleasePairTests(unittest.TestCase):
 
     def test_theme_is_rechecked_after_plugin_activations(self):
         runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
-        self.assertIn('wp-env run cli wp theme is-active "$theme_slug"', runtime)
+        self.assertIn('wp-env run cli wp --skip-plugins --skip-themes theme is-active "$theme_slug"', runtime)
         self.assertIn('theme_active=passed', runtime)
 
     def test_sentinel_content_and_status_are_preserved(self):
