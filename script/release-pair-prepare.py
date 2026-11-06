@@ -64,6 +64,19 @@ def extract_release(source: Path, destination: Path, kind: str) -> tuple[str, st
     return slug, hashlib.sha256(source.read_bytes()).hexdigest()
 
 
+def plugin_tree_fingerprint(directory: Path) -> str:
+    """Hash normalized extracted names, entry types and file bytes, not ZIP metadata."""
+    digest = hashlib.sha256()
+    for member in sorted(directory.rglob("*")):
+        relative = member.relative_to(directory).as_posix().encode("utf-8")
+        digest.update(b"D" if member.is_dir() else b"F")
+        digest.update(len(relative).to_bytes(4, "big"))
+        digest.update(relative)
+        if member.is_file():
+            digest.update(hashlib.sha256(member.read_bytes()).digest())
+    return digest.hexdigest()
+
+
 def prepare(args: argparse.Namespace) -> None:
     out = Path(args.output).resolve()
     if out.exists():
@@ -81,6 +94,9 @@ def prepare(args: argparse.Namespace) -> None:
                 raise ValueError("Previous plugin and candidate have different slugs")
             if old_hash == plugin_hash:
                 raise ValueError("Previous plugin and candidate archives are identical")
+            if (plugin_tree_fingerprint(out / "plugin" / plugin_slug)
+                    == plugin_tree_fingerprint(out / "candidate" / plugin_slug)):
+                raise ValueError("Previous plugin and candidate contents are identical")
         else:
             shutil.move(str(out / "candidate"), str(out / "plugin"))
             old_hash = None

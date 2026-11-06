@@ -147,6 +147,24 @@ class ZipReleasePairTests(unittest.TestCase):
         runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
         self.assertIn("--max-redirs 0", runtime)
 
+    def test_metadata_only_zip_change_is_not_an_upgrade(self):
+        old = self.base / "previous.zip"
+        old.write_bytes(self.plugin.read_bytes())
+        with zipfile.ZipFile(old, "a") as z:
+            z.comment = b"different ZIP metadata; identical extracted plugin"
+        self.assertNotEqual(old.read_bytes(), self.plugin.read_bytes())
+        with self.assertRaisesRegex(ValueError, "contents are identical"):
+            MODULE.prepare(self.args(old))
+        self.assertFalse(self.out.exists())
+
+    def test_verification_isolated_and_repeated_after_http(self):
+        runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
+        self.assertIn('wp --skip-plugins --skip-themes plugin is-active', runtime)
+        self.assertIn('wp --skip-plugins --skip-themes theme is-active', runtime)
+        self.assertIn('wp --skip-plugins --skip-themes eval', runtime)
+        self.assertEqual(runtime.count("\nverify_release_state\n"), 2)
+        self.assertLess(runtime.index('curl --fail'), runtime.rindex('verify_release_state'))
+
     def test_archive_traversal_is_rejected(self):
         write_zip(self.plugin, "sample-plugin", "plugin",
                   extra=[("sample-plugin/../outside.txt", "x")])
