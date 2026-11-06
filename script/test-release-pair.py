@@ -98,7 +98,7 @@ class ZipReleasePairTests(unittest.TestCase):
         self.assertIn("job.workflow_repository", workflow)
         self.assertIn("job.workflow_sha", workflow)
         self.assertNotIn("github.head_ref", workflow)
-        self.assertRegex(workflow, r"wp plugin install plugin-check --version=\d+\.\d+\.\d+ --activate")
+        self.assertRegex(workflow, r"wp --skip-plugins --skip-themes plugin install plugin-check --version=\d+\.\d+\.\d+ --activate")
 
     def test_workflow_records_unique_per_invocation_artifacts(self):
         workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
