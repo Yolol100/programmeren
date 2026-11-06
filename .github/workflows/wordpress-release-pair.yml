@@ -52,8 +52,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Yolol100/programmeren
-          # Trusted main for private callers; same-repo PR uses its own branch for fixtures.
-          ref: ${{ github.event_name == 'pull_request' && github.repository == 'Yolol100/programmeren' && github.head_ref || 'main' }}
+          # Use the base-repository PR merge SHA (also reachable for fork PRs).
+          # Authorized private callers always use the trusted main branch.
+          ref: ${{ github.event_name == 'pull_request' && github.repository == 'Yolol100/programmeren' && github.sha || 'main' }}
           path: harness
           persist-credentials: false
       - name: Download caller artifact
@@ -104,7 +105,8 @@ jobs:
           set -euo pipefail
           cd prepared
           slug="$(python3 -c 'import json;print(json.load(open("receipt.json"))["plugin_slug"])')"
-          wp-env run cli wp plugin install plugin-check --activate
+          wp-env run cli wp plugin install plugin-check --version=2.1.0 --activate
+          wp-env run cli wp plugin get plugin-check --field=version > evidence/plugin-check-version.txt
           wp-env run cli wp plugin check "$slug" --format=strict-json > evidence/plugin-check.json
       - name: Optional isolated Lighthouse lab smoke
         if: inputs.lighthouse_lab

@@ -48,8 +48,8 @@ if (get_post_meta($id, "_release_pair_preserve", true) !== "keep") { exit(11); }
 echo "POST_AND_META_PRESERVED\n";
 '
 
-# A failed frontend response also fails the smoke, without returning content to logs.
-curl --fail --location --silent --show-error --max-time 30 \
+# Reject all redirects: a remote 200 must not masquerade as a healthy local WP frontend.
+curl --fail --location --max-redirs 0 --silent --show-error --max-time 30 \
     --output /dev/null "http://127.0.0.1:$WP_ENV_PORT/"
 printf 'wp_bootstrap=passed\nplugin_active=passed\nsynthetic_content=preserved\n' > evidence/runtime-summary.txt
 if [[ "$upgrade" == "yes" ]]; then

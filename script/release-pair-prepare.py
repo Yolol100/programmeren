@@ -35,7 +35,7 @@ def extract_release(source: Path, destination: Path, kind: str) -> tuple[str, st
             parts = name.rstrip("/").split("/")
             if (not SAFE_MEMBER.fullmatch(name.rstrip("/"))
                     or any(part in ("", ".", "..") for part in parts)
-                    or len(parts) < 2
+                    or (len(parts) < 2 and not item.is_dir())
                     or stat.S_IFMT(item.external_attr >> 16) == stat.S_IFLNK):
                 raise ValueError(f"{kind}: unsafe archive member")
             roots.add(parts[0])
@@ -77,6 +77,8 @@ def prepare(args: argparse.Namespace) -> None:
             )
             if old_slug != plugin_slug:
                 raise ValueError("Previous plugin and candidate have different slugs")
+            if old_hash == plugin_hash:
+                raise ValueError("Previous plugin and candidate archives are identical")
         else:
             shutil.move(str(out / "candidate"), str(out / "plugin"))
             old_hash = None

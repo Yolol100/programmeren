@@ -74,6 +74,31 @@ class ZipReleasePairTests(unittest.TestCase):
             MODULE.prepare(self.args(old))
         self.assertFalse(self.out.exists())
 
+    def test_explicit_top_level_directories_are_accepted(self):
+        for archive, root in ((self.theme, "sample-theme/"),
+                              (self.plugin, "sample-plugin/")):
+            with zipfile.ZipFile(archive, "a") as z:
+                z.writestr(root, "")
+        MODULE.prepare(self.args())
+        self.assertTrue((self.out / "theme/sample-theme/style.css").is_file())
+        self.assertTrue((self.out / "plugin/sample-plugin/test-plugin.php").is_file())
+
+    def test_identical_previous_plugin_cannot_claim_upgrade(self):
+        with self.assertRaisesRegex(ValueError, "identical"):
+            MODULE.prepare(self.args(self.plugin))
+        self.assertFalse(self.out.exists())
+
+    def test_workflow_uses_reachable_pr_sha_and_pins_plugin_check(self):
+        workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
+                    "wordpress-release-pair.yml").read_text()
+        self.assertIn("github.sha || 'main'", workflow)
+        self.assertNotIn("github.head_ref", workflow)
+        self.assertRegex(workflow, r"wp plugin install plugin-check --version=\d+\.\d+\.\d+ --activate")
+
+    def test_frontend_smoke_refuses_redirects(self):
+        runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
+        self.assertIn("--max-redirs 0", runtime)
+
     def test_archive_traversal_is_rejected(self):
         write_zip(self.plugin, "sample-plugin", "plugin",
                   extra=[("sample-plugin/../outside.txt", "x")])
