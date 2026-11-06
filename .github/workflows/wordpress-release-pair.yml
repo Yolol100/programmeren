@@ -3,6 +3,10 @@ name: WordPress theme and plugin release-pair QA
 on:
   workflow_call:
     inputs:
+      evidence_id:
+        description: 'Unique safe label for this invocation within the caller workflow run'
+        required: true
+        type: string
       release_artifact:
         description: 'Artifact uploaded by the caller in the same private workflow run'
         required: true
@@ -51,10 +55,9 @@ jobs:
       - name: Checkout trusted generic audit harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: Yolol100/programmeren
-          # Use the base-repository PR merge SHA (also reachable for fork PRs).
-          # Authorized private callers always use the trusted main branch.
-          ref: ${{ github.event_name == 'pull_request' && github.repository == 'Yolol100/programmeren' && github.sha || 'main' }}
+          # The reusable workflow's resolved commit, not the caller's changing branch.
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: harness
           persist-credentials: false
       - name: Download caller artifact
@@ -69,6 +72,7 @@ jobs:
           PLUGIN_ARCHIVE: ${{ inputs.plugin_archive }}
           PREVIOUS_PLUGIN_ARCHIVE: ${{ inputs.previous_plugin_archive }}
           PHP_VERSION: ${{ inputs.php_version }}
+          EVIDENCE_ID: ${{ inputs.evidence_id }}
         run: |
           set -euo pipefail
           for archive in "$THEME_ARCHIVE" "$PLUGIN_ARCHIVE" "$PREVIOUS_PLUGIN_ARCHIVE"; do
@@ -79,6 +83,9 @@ jobs:
             test -f "release-input/$archive"
           done
           [[ "$PHP_VERSION" =~ ^8[.][234]$ ]]
+          [[ "$EVIDENCE_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$ ]] || {
+            echo 'Invalid evidence_id; use 1-60 safe characters' >&2; exit 2;
+          }
           if [[ -n "$PREVIOUS_PLUGIN_ARCHIVE" ]]; then
             python3 harness/script/release-pair-prepare.py prepare \
               --theme "release-input/$THEME_ARCHIVE" --plugin "release-input/$PLUGIN_ARCHIVE" \
@@ -107,7 +114,11 @@ jobs:
           slug="$(python3 -c 'import json;print(json.load(open("receipt.json"))["plugin_slug"])')"
           wp-env run cli wp plugin install plugin-check --version=2.1.0 --activate
           wp-env run cli wp plugin get plugin-check --field=version > evidence/plugin-check-version.txt
-          wp-env run cli wp plugin check "$slug" --format=strict-json > evidence/plugin-check.json
+          upgrade_mode="$(python3 -c 'import json;print(json.load(open("receipt.json"))["upgrade_mode"])')"
+          check_mode='new'
+          if [[ "$upgrade_mode" == 'True' ]]; then check_mode='update'; fi
+          printf '%s\n' "$check_mode" > evidence/plugin-check-mode.txt
+          wp-env run cli wp plugin check "$slug" --mode="$check_mode" --format=strict-json > evidence/plugin-check.json
       - name: Optional isolated Lighthouse lab smoke
         if: inputs.lighthouse_lab
         shell: bash
@@ -123,7 +134,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: wp-pair-evidence-${{ github.run_id }}
+          name: wp-pair-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.evidence_id }}
           path: |
             prepared/receipt.json
             prepared/evidence/

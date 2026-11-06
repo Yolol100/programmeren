@@ -19,6 +19,7 @@ The private caller must first upload one GitHub Actions artifact containing them
         needs: package
         uses: Yolol100/programmeren/.github/workflows/wordpress-release-pair.yml@main
         with:
+          evidence_id: theme-plugin-php83
           release_artifact: private-release-pair
           theme_archive: theme.zip
           plugin_archive: plugin.zip
@@ -26,6 +27,8 @@ The private caller must first upload one GitHub Actions artifact containing them
           php_version: '8.3'
           plugin_check: true
           lighthouse_lab: false
+
+The `evidence_id` must be unique per reusable-workflow invocation in a caller run; use a distinct label for each PHP matrix value or release pair. Evidence names also include the run attempt. The harness is checked out at the exact commit containing the selected reusable workflow. WordPress core is pinned to `7.1.4`, MariaDB to `11.4.13`, and Plugin Check to `2.1.0`; actual runtime versions are collected separately in evidence. Upgrade checks use Plugin Check `update` mode, and fresh installations use `new` mode.
 
 The sample assumes a separate caller-owned package job. If no previous release is available, omit previous_plugin_archive: the upgrade check is explicitly NOT_RUN.
 

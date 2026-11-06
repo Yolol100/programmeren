@@ -47,6 +47,10 @@ class ZipReleasePairTests(unittest.TestCase):
         config = json.loads((self.out / ".wp-env.json").read_text())
         receipt = json.loads((self.out / "receipt.json").read_text())
         self.assertEqual(config["themes"], ["./theme/sample-theme"])
+        self.assertEqual(config["core"], MODULE.WORDPRESS_CORE_REF)
+        self.assertEqual(config["mariadbVersion"], MODULE.MARIADB_VERSION)
+        self.assertEqual(receipt["wordpress_core_ref"], MODULE.WORDPRESS_CORE_REF)
+        self.assertEqual(receipt["mariadb_version"], MODULE.MARIADB_VERSION)
         self.assertEqual(config["plugins"], ["./plugin/sample-plugin"])
         self.assertEqual(receipt["theme_sha256"], MODULE.hashlib.sha256(self.theme.read_bytes()).hexdigest())
         self.assertFalse(receipt["upgrade_mode"])
@@ -91,9 +95,23 @@ class ZipReleasePairTests(unittest.TestCase):
     def test_workflow_uses_reachable_pr_sha_and_pins_plugin_check(self):
         workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
                     "wordpress-release-pair.yml").read_text()
-        self.assertIn("github.sha || 'main'", workflow)
+        self.assertIn("job.workflow_repository", workflow)
+        self.assertIn("job.workflow_sha", workflow)
         self.assertNotIn("github.head_ref", workflow)
         self.assertRegex(workflow, r"wp plugin install plugin-check --version=\d+\.\d+\.\d+ --activate")
+
+    def test_workflow_records_unique_per_invocation_artifacts(self):
+        workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
+                    "wordpress-release-pair.yml").read_text()
+        self.assertIn("evidence_id:", workflow)
+        self.assertIn("${{ github.run_attempt }}-${{ inputs.evidence_id }}", workflow)
+        self.assertIn("EVIDENCE_ID: ${{ inputs.evidence_id }}", workflow)
+
+    def test_upgrade_plugin_check_uses_update_mode(self):
+        workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
+                    "wordpress-release-pair.yml").read_text()
+        self.assertIn("check_mode='update'", workflow)
+        self.assertIn('--mode="$check_mode"', workflow)
 
     def test_frontend_smoke_refuses_redirects(self):
         runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()

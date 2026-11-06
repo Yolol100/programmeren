@@ -18,6 +18,7 @@ wp-env run cli wp plugin activate "$plugin_slug"
 wp-env run cli wp plugin is-active "$plugin_slug"
 wp-env run cli wp eval 'if (! $GLOBALS["wpdb"]->check_connection(false)) { exit(8); } echo "DATABASE_OK\n";'
 wp-env run cli wp core version > evidence/wordpress-version.txt
+wp-env run cli wp eval 'echo $GLOBALS["wpdb"]->get_var("SELECT VERSION()") . PHP_EOL;' > evidence/mariadb-version.txt
 wp-env run cli wp eval 'echo PHP_VERSION . PHP_EOL;' > evidence/php-version.txt
 
 # Synthetic editor-authored content; not customer data.

@@ -50,6 +50,7 @@ jobs:
     needs: package-test-fixture
     uses: ./.github/workflows/wordpress-release-pair.yml
     with:
+      evidence_id: synthetic-php83
       release_artifact: synthetic-pair-no-client-content
       theme_archive: theme.zip
       plugin_archive: plugin.zip

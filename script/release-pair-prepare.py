@@ -14,6 +14,8 @@ import sys
 import zipfile
 
 MAX_FILES = 3000
+WORDPRESS_CORE_REF = 'WordPress/WordPress#7.1.4'
+MARIADB_VERSION = '11.4.13'
 MAX_UNCOMPRESSED = 512 * 1024 * 1024
 SAFE_MEMBER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
 
@@ -83,6 +85,8 @@ def prepare(args: argparse.Namespace) -> None:
             shutil.move(str(out / "candidate"), str(out / "plugin"))
             old_hash = None
         config = {
+            "core": WORDPRESS_CORE_REF,
+            "mariadbVersion": MARIADB_VERSION,
             "phpVersion": args.php,
             "themes": [f"./theme/{theme_slug}"],
             "plugins": [f"./plugin/{plugin_slug}"],
@@ -98,6 +102,8 @@ def prepare(args: argparse.Namespace) -> None:
             "previous_plugin_sha256": old_hash,
             "theme_slug": theme_slug, "plugin_slug": plugin_slug,
             "upgrade_mode": upgrading, "php": args.php,
+            "wordpress_core_ref": WORDPRESS_CORE_REF,
+            "mariadb_version": MARIADB_VERSION,
         }, indent=2) + "\n")
     except Exception:
         shutil.rmtree(out)
