@@ -113,13 +113,15 @@ jobs:
           set -euo pipefail
           cd prepared
           slug="$(python3 -c 'import json;print(json.load(open("receipt.json"))["plugin_slug"])')"
-          wp-env run cli wp plugin install plugin-check --version=2.1.0 --activate
-          wp-env run cli wp plugin get plugin-check --field=version > evidence/plugin-check-version.txt
+          # Do not execute the untrusted candidate or theme while setting up the checker.
+          wp-env run cli wp --skip-plugins --skip-themes plugin install plugin-check --version=2.1.0 --activate
+          wp-env run cli wp --skip-plugins --skip-themes plugin get plugin-check --field=version > evidence/plugin-check-version.txt
           upgrade_mode="$(python3 -c 'import json;print(json.load(open("receipt.json"))["upgrade_mode"])')"
           check_mode='new'
           if [[ "$upgrade_mode" == 'True' ]]; then check_mode='update'; fi
           printf '%s\n' "$check_mode" > evidence/plugin-check-mode.txt
-          wp-env run cli wp plugin check "$slug" --mode="$check_mode" --format=strict-json > evidence/plugin-check.json
+          # Load Plugin Check, but not the candidate being examined.
+          wp-env run cli wp --skip-plugins="$slug" --skip-themes plugin check "$slug" --mode="$check_mode" --format=strict-json > evidence/plugin-check.json
       - name: Optional isolated Lighthouse lab smoke
         id: lighthouse
         if: inputs.lighthouse_lab

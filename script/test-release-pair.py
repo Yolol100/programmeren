@@ -143,6 +143,13 @@ class ZipReleasePairTests(unittest.TestCase):
         self.assertIn("NOT_RUN_UPSTREAM_FAILURE", workflow)
         self.assertIn("record_status", workflow)
 
+    def test_plugin_check_skips_the_submitted_runtime_code(self):
+        workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
+                    "wordpress-release-pair.yml").read_text()
+        self.assertIn('wp --skip-plugins --skip-themes plugin install plugin-check', workflow)
+        self.assertIn('wp --skip-plugins="$slug" --skip-themes plugin check "$slug"', workflow)
+        self.assertIn('--mode="$check_mode" --format=strict-json', workflow)
+
     def test_frontend_smoke_refuses_redirects(self):
         runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
         self.assertIn("--max-redirs 0", runtime)
