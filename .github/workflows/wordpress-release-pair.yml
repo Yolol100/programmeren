@@ -130,6 +130,20 @@ jobs:
             --numberOfRuns=2 --settings.chromeFlags="--no-sandbox"
           mkdir -p evidence/lighthouse
           cp -a .lighthouseci/. evidence/lighthouse/
+      - name: Record deliberately skipped optional checks
+        if: always()
+        shell: bash
+        env:
+          PLUGIN_CHECK_ENABLED: ${{ inputs.plugin_check }}
+          LIGHTHOUSE_LAB_ENABLED: ${{ inputs.lighthouse_lab }}
+        run: |
+          mkdir -p prepared/evidence
+          if [[ "$PLUGIN_CHECK_ENABLED" == "false" ]]; then
+            printf 'NOT_RUN_DISABLED_BY_INPUT\n' > prepared/evidence/plugin-check-status.txt
+          fi
+          if [[ "$LIGHTHOUSE_LAB_ENABLED" == "false" ]]; then
+            printf 'NOT_RUN_DISABLED_BY_INPUT\n' > prepared/evidence/lighthouse-status.txt
+          fi
       - name: Save evidence to CALLER run (no ZIP/source upload)
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

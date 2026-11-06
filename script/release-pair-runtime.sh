@@ -41,10 +41,13 @@ if [[ "$upgrade" == "yes" ]]; then
     wp-env run cli wp plugin activate "$plugin_slug"
 fi
 wp-env run cli wp plugin is-active "$plugin_slug"
+wp-env run cli wp theme is-active "$theme_slug"
 wp-env run cli wp eval '
 $id = (int) get_option("_release_pair_test_post_id");
 $post = get_post($id);
 if (! $post || $post->post_title !== "Release pair preservation sentinel") { exit(10); }
+if ($post->post_status !== "draft") { exit(12); }
+if ($post->post_content !== "This is isolated test content.") { exit(13); }
 if (get_post_meta($id, "_release_pair_preserve", true) !== "keep") { exit(11); }
 echo "POST_AND_META_PRESERVED\n";
 '
@@ -52,7 +55,7 @@ echo "POST_AND_META_PRESERVED\n";
 # Reject all redirects: a remote 200 must not masquerade as a healthy local WP frontend.
 curl --fail --location --max-redirs 0 --silent --show-error --max-time 30 \
     --output /dev/null "http://127.0.0.1:$WP_ENV_PORT/"
-printf 'wp_bootstrap=passed\nplugin_active=passed\nsynthetic_content=preserved\n' > evidence/runtime-summary.txt
+printf 'wp_bootstrap=passed\ntheme_active=passed\nplugin_active=passed\nsynthetic_content=preserved\n' > evidence/runtime-summary.txt
 if [[ "$upgrade" == "yes" ]]; then
     printf 'upgrade_and_repeat_activation=passed\n' >> evidence/runtime-summary.txt
 else

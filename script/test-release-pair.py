@@ -113,6 +113,23 @@ class ZipReleasePairTests(unittest.TestCase):
         self.assertIn("check_mode='update'", workflow)
         self.assertIn('--mode="$check_mode"', workflow)
 
+    def test_theme_is_rechecked_after_plugin_activations(self):
+        runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
+        self.assertIn('wp-env run cli wp theme is-active "$theme_slug"', runtime)
+        self.assertIn('theme_active=passed', runtime)
+
+    def test_sentinel_content_and_status_are_preserved(self):
+        runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
+        self.assertIn('$post->post_status !== "draft"', runtime)
+        self.assertIn('$post->post_content !== "This is isolated test content."', runtime)
+
+    def test_optional_disabled_checks_have_not_run_evidence(self):
+        workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
+                    "wordpress-release-pair.yml").read_text()
+        self.assertIn('plugin-check-status.txt', workflow)
+        self.assertIn('lighthouse-status.txt', workflow)
+        self.assertIn('NOT_RUN_DISABLED_BY_INPUT', workflow)
+
     def test_frontend_smoke_refuses_redirects(self):
         runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
         self.assertIn("--max-redirs 0", runtime)
