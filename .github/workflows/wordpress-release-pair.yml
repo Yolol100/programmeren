@@ -106,6 +106,7 @@ jobs:
         shell: bash
         run: bash harness/script/release-pair-runtime.sh prepared
       - name: Official WordPress Plugin Check
+        id: plugin_check
         if: inputs.plugin_check
         shell: bash
         run: |
@@ -120,6 +121,7 @@ jobs:
           printf '%s\n' "$check_mode" > evidence/plugin-check-mode.txt
           wp-env run cli wp plugin check "$slug" --mode="$check_mode" --format=strict-json > evidence/plugin-check.json
       - name: Optional isolated Lighthouse lab smoke
+        id: lighthouse
         if: inputs.lighthouse_lab
         shell: bash
         run: |
@@ -130,20 +132,32 @@ jobs:
             --numberOfRuns=2 --settings.chromeFlags="--no-sandbox"
           mkdir -p evidence/lighthouse
           cp -a .lighthouseci/. evidence/lighthouse/
-      - name: Record deliberately skipped optional checks
+      - name: Record optional check outcomes even after earlier failures
         if: always()
         shell: bash
         env:
           PLUGIN_CHECK_ENABLED: ${{ inputs.plugin_check }}
           LIGHTHOUSE_LAB_ENABLED: ${{ inputs.lighthouse_lab }}
+          PLUGIN_CHECK_OUTCOME: ${{ steps.plugin_check.outcome }}
+          LIGHTHOUSE_OUTCOME: ${{ steps.lighthouse.outcome }}
         run: |
+          set -euo pipefail
           mkdir -p prepared/evidence
-          if [[ "$PLUGIN_CHECK_ENABLED" == "false" ]]; then
-            printf 'NOT_RUN_DISABLED_BY_INPUT\n' > prepared/evidence/plugin-check-status.txt
-          fi
-          if [[ "$LIGHTHOUSE_LAB_ENABLED" == "false" ]]; then
-            printf 'NOT_RUN_DISABLED_BY_INPUT\n' > prepared/evidence/lighthouse-status.txt
-          fi
+          record_status() {
+            local enabled="$1" outcome="$2" file="$3" status
+            if [[ "$enabled" == "false" ]]; then
+              status="NOT_RUN_DISABLED_BY_INPUT"
+            elif [[ "$outcome" == "success" ]]; then
+              status="PASSED"
+            elif [[ "$outcome" == "failure" ]]; then
+              status="FAILED"
+            else
+              status="NOT_RUN_UPSTREAM_FAILURE"
+            fi
+            printf '%s\n' "$status" > "$file"
+          }
+          record_status "$PLUGIN_CHECK_ENABLED" "$PLUGIN_CHECK_OUTCOME" prepared/evidence/plugin-check-status.txt
+          record_status "$LIGHTHOUSE_LAB_ENABLED" "$LIGHTHOUSE_OUTCOME" prepared/evidence/lighthouse-status.txt
       - name: Save evidence to CALLER run (no ZIP/source upload)
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

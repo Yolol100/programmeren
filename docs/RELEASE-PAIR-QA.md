@@ -42,6 +42,11 @@ The sample assumes a separate caller-owned package job. If no previous release i
 6. Check the synthetic content survives. Optionally execute official Plugin Check and isolated Lighthouse lab.
 7. Keep sanitized run-scoped results within the private caller's Actions artifacts, then destroy the test containers.
 
+Each optional tool writes a status marker: PASSED, FAILED, NOT_RUN_DISABLED_BY_INPUT or
+NOT_RUN_UPSTREAM_FAILURE. A missing receipt/status file is never proof of success.
+The synthetic integration disables Plugin Check and Lighthouse; their availability
+for authorized customer releases needs an independent invocation.
+
 A clean synthetic installation does not prove an actual customer DB migration, complete editor roundtrip, real translation-provider functionality, real reviews, staging hosting parity, or Lighthouse of a fully populated live site.
 
 ## Local contract verification

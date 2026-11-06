@@ -130,6 +130,19 @@ class ZipReleasePairTests(unittest.TestCase):
         self.assertIn('lighthouse-status.txt', workflow)
         self.assertIn('NOT_RUN_DISABLED_BY_INPUT', workflow)
 
+    def test_validation_leaves_no_python_bytecode_cache(self):
+        validate = MODULE_PATH.with_name("validate").read_text()
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1 python3 script/test-release-pair.py", validate)
+        self.assertNotIn("python3 -m py_compile script/release-pair-prepare.py", validate)
+
+    def test_optional_check_status_includes_upstream_failure(self):
+        workflow = (MODULE_PATH.parent.parent / ".github" / "workflows" /
+                    "wordpress-release-pair.yml").read_text()
+        self.assertIn("steps.plugin_check.outcome", workflow)
+        self.assertIn("steps.lighthouse.outcome", workflow)
+        self.assertIn("NOT_RUN_UPSTREAM_FAILURE", workflow)
+        self.assertIn("record_status", workflow)
+
     def test_frontend_smoke_refuses_redirects(self):
         runtime = MODULE_PATH.with_name("release-pair-runtime.sh").read_text()
         self.assertIn("--max-redirs 0", runtime)
